@@ -1,0 +1,13 @@
+{
+  "name": "janmensik/jmlib",
+  "description": "PHP objects and functions for base app",
+  "require": {
+    "php": ">=8.0"
+  },
+  "license": "MIT",
+  "autoload": {
+    "psr-4": {
+      "Janmensik\\Jmlib\\": "src/"
+    }
+  }
+}
