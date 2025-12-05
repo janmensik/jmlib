@@ -1,2 +1,5 @@
 # Custom folder with old functions to implement int JmLib
 /todo/
+
+.gitignore
+/.github/
