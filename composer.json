@@ -5,6 +5,12 @@
     "php": ">=8.0"
   },
   "license": "MIT",
+  "authors": [
+        {
+            "name": "Jan Mensik",
+            "email": "jan.mensik@gmail.com"
+        }
+    ],
   "autoload": {
     "psr-4": {
       "Janmensik\\Jmlib\\": "src/"
