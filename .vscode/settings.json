@@ -1,5 +1,9 @@
 {
     "cSpell.words": [
         "pestphp"
+    ],
+    "cSpell.ignoreWords": [
+        "ababa",
+        "testsalt"
     ]
 }

@@ -137,19 +137,6 @@ class JmLib {
     }
 
     /**
-     * Validate the syntax of an email address (legacy logic)
-     *
-     * @param string $email
-     * @return bool
-     */
-    public static function checkEmail(string $email): bool {
-        $atom = '[-a-z0-9!#$%&\'*+/=?^_`{|}~]';
-        $domain = '[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])';
-        return (bool)preg_match(":^$atom+(\\.$atom+)*@($domain?\\.)+$domain$:", $email . '', 'i');
-    }
-
-
-    /**
      * Retrieves the client's IP address as a string. IPv4 only
      *
      * @return string The IP address of the client.
@@ -171,12 +158,12 @@ class JmLib {
     /**
      * Reconstructs the current page's full URL.
      *
-     * @param bool $for_params If true, the URL will be made ready for a new query parameter to be
+     * @param bool|null $for_params If true, the URL will be made ready for a new query parameter to be
      *                         appended by ensuring it ends with either '?' or '&'.
-     * @param bool $remove_existing_params If true, any query params in the original URL will be removed.
+     * @param bool|null $remove_existing_params If true, any query params in the original URL will be removed.
      * @return string The current full URL.
      */
-    public static function getUrl($for_params = true, $remove_existing_params = false): string {
+    public static function getUrl(?bool $for_params = true, ?bool $remove_existing_params = false): string {
         // Determine the protocol. A non-empty value for 'HTTPS' that isn't 'off' is considered secure.
         $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
 
@@ -215,7 +202,7 @@ class JmLib {
      * @param int $max_links_to_show Maximum number of pagination links to display. Default is 7.
      * @return array|false Returns an array containing the pagination structure or false if pagination is not needed.
      */
-    function pagination($on_page = 20, $total = 0, $current_page = 1, $max_links_to_show = 7) {
+    public static function pagination($on_page = 20, $total = 0, $current_page = 1, $max_links_to_show = 7) {
         if ($total <= $on_page) {
             return false;
         }
@@ -279,7 +266,7 @@ class JmLib {
      * @param string|null $return_only If specified, returns only 'from' or 'till' value.
      * @return array|int|null An array with 'from' and 'till' timestamps, or a single timestamp if $return_only is set.
      */
-    function getInterval(string $textname, ?int $now = null, ?string $return_only = null) {
+    public static function getInterval(string $textname, ?int $now = null, ?string $return_only = null) {
         if (!$now)
             $now = mktime(12, 0, 0);
 
