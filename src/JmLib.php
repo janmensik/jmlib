@@ -11,10 +11,15 @@ class JmLib {
      * @return string Converted string.
      */
     public static function utf2ascii(string $string): string {
-        $string = iconv('utf-8', 'windows-1250', $string);
-        $win = "����������������̊�؎���ɍ���������\x97\x96\x91\x92\x84\x93\x94\xAB\xBB";
-        $ascii = "escrzyaietnduuoouaESCRZYAIETNDUUOOUEAOUEA\x2D\x2D\x27\x27\x22\x22\x22\x22\x22";
-        return strtr($string, $win, $ascii);
+        $transliterator = \Transliterator::create('Any-Latin; Latin-ASCII; Lower();');
+        # Fallback if transliterator creation failed
+        if ($transliterator === null) {
+            return $string;
+        }
+
+        $result = $transliterator->transliterate($string);
+
+        return $result !== false ? $result : $string;
     }
 
     /**
