@@ -2,18 +2,29 @@
   "name": "janmensik/jmlib",
   "description": "PHP objects and functions for base app",
   "require": {
-    "php": ">=8.0"
+    "php": ">=8.0",
+    "pestphp/pest": "^4.1"
   },
   "license": "MIT",
   "authors": [
-        {
-            "name": "Jan Mensik",
-            "email": "jan.mensik@gmail.com"
-        }
-    ],
+    {
+      "name": "Jan Mensik",
+      "email": "jan.mensik@gmail.com"
+    }
+  ],
   "autoload": {
     "psr-4": {
       "Janmensik\\Jmlib\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Tests\\": "tests/"
+    }
+  },
+  "config": {
+    "allow-plugins": {
+      "pestphp/pest-plugin": true
     }
   }
 }
