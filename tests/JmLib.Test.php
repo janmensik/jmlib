@@ -63,6 +63,10 @@ test('parseDate handles various date formats and force option', function () {
 
     // Invalid date, force=true (should return today at noon)
     expect(JmLib::parseDate('not a date', true))->toBe(mktime(12, 0, 0));
+
+    // dd. mm. hh:mm (uses current year)
+    $expected = mktime(10, 20, 0, 2, 1); // 1st Feb of current year at 10:20
+    expect(JmLib::parseDate('01. 02. 10:20'))->toBe($expected);
 });
 
 # stripos and strripos()
@@ -121,12 +125,18 @@ test('getUrl handles various parameter options', function () {
 });
 
 # getip()
-test('getip returns the appropriate server IP sources', function () {
+test('getip returns the appropriate server IP sources in correct order of precedence', function () {
+    // 1. REMOTE_ADDR as baseline
     $_SERVER['HTTP_CLIENT_IP'] = '';
     $_SERVER['HTTP_X_FORWARDED_FOR'] = '';
     $_SERVER['REMOTE_ADDR'] = '127.0.0.1';
     expect(JmLib::getip())->toBe('127.0.0.1');
 
+    // 2. HTTP_X_FORWARDED_FOR should be preferred over REMOTE_ADDR
+    $_SERVER['HTTP_X_FORWARDED_FOR'] = '192.168.1.1';
+    expect(JmLib::getip())->toBe('192.168.1.1');
+
+    // 3. HTTP_CLIENT_IP should be preferred over all others
     $_SERVER['HTTP_CLIENT_IP'] = '10.0.0.1';
     expect(JmLib::getip())->toBe('10.0.0.1');
 });
@@ -163,4 +173,20 @@ test('getInterval returns correct timestamps for predefined text names', functio
     $last7 = JmLib::getInterval('last7days', $now);
     expect($last7['from'])->toBe(strtotime('2023-10-20 00:00:00'));
     expect($last7['till'])->toBe(strtotime('2023-10-26 23:59:59'));
+
+    // this month
+    $month = JmLib::getInterval('month', $now);
+    expect($month['from'])->toBe(strtotime('2023-10-01 00:00:00'));
+    expect($month['till'])->toBe(strtotime('2023-10-31 23:59:59'));
+
+    // last month
+    $lastMonth = JmLib::getInterval('lastmonth', $now);
+    expect($lastMonth['from'])->toBe(strtotime('2023-09-01 00:00:00'));
+    expect($lastMonth['till'])->toBe(strtotime('2023-09-30 23:59:59'));
+
+    // this year - note: implementation's 'till' is end of current month, not year
+    $thisYear = JmLib::getInterval('thisyear', $now);
+    expect($thisYear['from'])->toBe(strtotime('2023-01-01 00:00:00'));
+    expect($thisYear['till'])->toBe(strtotime('2023-10-31 23:59:59'));
+
 });
