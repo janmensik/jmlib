@@ -2,6 +2,8 @@
 
 namespace Janmensik\Jmlib;
 
+use \DateTime;
+
 class JmLib {
 
     /**
@@ -361,5 +363,23 @@ class JmLib {
         }
 
         return ($return_only && $output[$return_only] ? $output[$return_only] : $output);
+    }
+
+    /**
+     * Counts the number of days between two timestamps.
+     *
+     * Calculates the number of complete days between two given timestamps.
+     * For example, the difference between '22.05.2013 11:30' and '21.05.2013 09:00' equals 1 day.
+     *
+     * @param int $startTimestamp Unix timestamp of the start date/time
+     * @param int $endTimestamp Unix timestamp of the end date/time
+     * @return int The number of days between the two timestamps
+     */
+    public static function countdays(?int $from = 0, ?int $till = 0): int {
+        if (!$from || !$till)
+            return (0);
+        $dd = date_diff(new DateTime('@' . intval($from)), new DateTime('@' . intval($till)));
+
+        return (round($dd->days));
     }
 }
