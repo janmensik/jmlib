@@ -375,7 +375,7 @@ class JmLib {
      * @param int $endTimestamp Unix timestamp of the end date/time
      * @return int The number of days between the two timestamps
      */
-    public static function countdays(?int $from = 0, ?int $till = 0): int {
+    public static function countDays(?int $from = 0, ?int $till = 0): int {
         if (!$from || !$till)
             return (0);
         $dd = date_diff(new DateTime('@' . intval($from)), new DateTime('@' . intval($till)));
