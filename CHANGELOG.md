@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2025-12-24
+
+### Changed
+- Renamed main class files to comply with PSR-4 autoloading:
+  - `class.Database.php` to `Database.php`
+  - `class.Modul.php` to `Modul.php`
+  - `class.AppData.php` to `AppData.php`
+- Modernized `Database` class property definitions.
+
+### Added
+- Added PEST tests for `Database` and `Modul` classes.
+- Added integration tests for database connectivity.
+
 ## [1.0.0] - 2025-12-23
 
 ### Added
@@ -26,7 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Database` class for database operations
 - `Modul` class for module handling
 - `UrlParameters` class for URL parameter processing
-- PSR-4 autoloading support
+- PSR-4 auto loading support
 - Composer package configuration
 - Pest testing framework integration
 - MIT license

@@ -6,8 +6,8 @@ use \mysqli;
 use \mysqli_result;
 
 class Database {
-	var $user, $password, $database, $server, $result, $db;
-	var $messages = array(); # debug informace
+	public $user, $password, $database, $server, $result, $db;
+	public $messages = array(); # debug informace
 
 	# ...................................................................
 	/**

@@ -1,6 +1,11 @@
 {
     "cSpell.words": [
-        "pestphp"
+        "autoloading",
+        "inarray",
+        "mydb",
+        "pestphp",
+        "stripos",
+        "strripos"
     ],
     "cSpell.ignoreWords": [
         "ababa",

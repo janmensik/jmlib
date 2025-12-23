@@ -3,3 +3,6 @@
 
 /.github/
 /.vscode/
+
+# Ignore environment files
+.env

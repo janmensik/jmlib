@@ -91,11 +91,11 @@ class AppData {
             return (true);
 
         if (isset($this->FILTERS[$page]) && is_array($this->FILTERS[$page])) {
-            foreach ($this->FILTERS[$page] as $key => $value) {                
-                if (isset($this->FILTERS[$page][$key]) && !isset($_GET[$key])) {                    
-                    $_GET[$key] = $value;                    
+            foreach ($this->FILTERS[$page] as $key => $value) {
+                if (isset($this->FILTERS[$page][$key]) && !isset($_GET[$key])) {
+                    $_GET[$key] = $value;
                 } elseif (isset($_GET[$key]) && $_GET[$key] !== '') {
-                    $this->FILTERS[$page][$key] = $_GET[$key];         
+                    $this->FILTERS[$page][$key] = $_GET[$key];
                 }
             }
         }

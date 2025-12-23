@@ -416,7 +416,12 @@ class Modul {
 
 		//echo ($sql . '<br>\n***************************************************\n<hr>\n***************************************************\n<br>');
 
-		$go = $this->DB->getNumAffected();
+		$affected_rows = $this->DB->getNumAffected();
+
+		// A failed query will result in -1.
+		if ($affected_rows < 0) {
+			return false;
+		}
 
 		# kdyz byl insert, jeste nactu nove id
 		if ($insert || $special) {
@@ -425,36 +430,37 @@ class Modul {
 				$ids = $next_id;
 		}
 
-		# musim volat sync()?
-		if ($go) {
+		// An insert should affect at least one row to be considered a success for returning an ID,
+		// unless there is M:N data to process, in which case we can proceed.
+		if ($insert && $affected_rows === 0 && empty($mn_data)) {
+			return false;
+		}
+
+		# Old sync logic - should only run if rows were actually changed.
+		if ($affected_rows > 0) {
 			foreach (array_keys($set) as $key => $value)
 				if (in_array($key, $this->sync)) {
 					if ($insert)
-						$go = $this->syncInsert($set, $ids);
+						$this->syncInsert($set, $ids);
 					else
-						$go = $this->syncUpdate($set, $ids);
+						$this->syncUpdate($set, $ids);
 					break;
 				}
-
-			// --- M:N relationships handling ---
-			if ($ids && !empty($mn_data)) {
-				foreach ($mn_data as $key => $data) {
-					$this->_syncManyToMany($ids, $data, $this->many_to_many[$key]);
-				}
-			}
-			// ------------------------------------
-			//$this->DB->query ('COMMIT;');
-
-			# smazu si cache
-			unset($this->cache);
-			unset($this->cache_total);
-
-			return ($ids);
 		}
-		//else
-		//$this->DB->query ('ROLLBACK;');
 
-		return (false);
+		// --- M:N relationships handling ---
+		if ($ids && !empty($mn_data)) {
+			foreach ($mn_data as $key => $data) {
+				$this->_syncManyToMany($ids, $data, $this->many_to_many[$key]);
+			}
+		}
+		// ------------------------------------
+
+		# smazu si cache
+		unset($this->cache);
+		unset($this->cache_total);
+
+		return ($ids);
 	}
 
 	/**
@@ -662,8 +668,8 @@ class Modul {
 
 		switch ($type) {
 			case 'float':
-				//return (parseFloat($value));
-				return (filter_var($value, FILTER_SANITIZE_NUMBER_FLOAT));
+				return (JmLib::parseFloat($value));
+				//return (filter_var($value, FILTER_SANITIZE_NUMBER_FLOAT));
 			case 'int':
 				return (filter_var($value, FILTER_SANITIZE_NUMBER_INT));
 			case 'email':
