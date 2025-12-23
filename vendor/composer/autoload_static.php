@@ -34,6 +34,7 @@ class ComposerStaticInitd03c0847b70e6deaf127f573f511de90
         ),
         'T' =>
         array (
+            'Tests\\' => 6,
             'Termwind\\' => 9,
         ),
         'S' =>
@@ -97,6 +98,10 @@ class ComposerStaticInitd03c0847b70e6deaf127f573f511de90
         'Webmozart\\Assert\\' =>
         array (
             0 => __DIR__ . '/..' . '/webmozart/assert/src',
+        ),
+        'Tests\\' =>
+        array (
+            0 => __DIR__ . '/../..' . '/tests',
         ),
         'Termwind\\' =>
         array (
@@ -469,6 +474,7 @@ class ComposerStaticInitd03c0847b70e6deaf127f573f511de90
         'PHPUnit\\Framework\\AssertionFailedError' => __DIR__ . '/..' . '/phpunit/phpunit/src/Framework/Exception/AssertionFailedError.php',
         'PHPUnit\\Framework\\Attributes\\After' => __DIR__ . '/..' . '/phpunit/phpunit/src/Framework/Attributes/After.php',
         'PHPUnit\\Framework\\Attributes\\AfterClass' => __DIR__ . '/..' . '/phpunit/phpunit/src/Framework/Attributes/AfterClass.php',
+        'PHPUnit\\Framework\\Attributes\\AllowMockObjectsWithoutExpectations' => __DIR__ . '/..' . '/phpunit/phpunit/src/Framework/Attributes/AllowMockObjectsWithoutExpectations.php',
         'PHPUnit\\Framework\\Attributes\\BackupGlobals' => __DIR__ . '/..' . '/phpunit/phpunit/src/Framework/Attributes/BackupGlobals.php',
         'PHPUnit\\Framework\\Attributes\\BackupStaticProperties' => __DIR__ . '/..' . '/phpunit/phpunit/src/Framework/Attributes/BackupStaticProperties.php',
         'PHPUnit\\Framework\\Attributes\\Before' => __DIR__ . '/..' . '/phpunit/phpunit/src/Framework/Attributes/Before.php',
@@ -679,7 +685,9 @@ class ComposerStaticInitd03c0847b70e6deaf127f573f511de90
         'PHPUnit\\Framework\\MockObject\\Stub\\ReturnStub' => __DIR__ . '/..' . '/phpunit/phpunit/src/Framework/MockObject/Runtime/Stub/ReturnStub.php',
         'PHPUnit\\Framework\\MockObject\\Stub\\ReturnValueMap' => __DIR__ . '/..' . '/phpunit/phpunit/src/Framework/MockObject/Runtime/Stub/ReturnValueMap.php',
         'PHPUnit\\Framework\\MockObject\\Stub\\Stub' => __DIR__ . '/..' . '/phpunit/phpunit/src/Framework/MockObject/Runtime/Stub/Stub.php',
+        'PHPUnit\\Framework\\MockObject\\TestDoubleBuilder' => __DIR__ . '/..' . '/phpunit/phpunit/src/Framework/MockObject/TestDoubleBuilder.php',
         'PHPUnit\\Framework\\MockObject\\TestDoubleState' => __DIR__ . '/..' . '/phpunit/phpunit/src/Framework/MockObject/Runtime/Api/TestDoubleState.php',
+        'PHPUnit\\Framework\\MockObject\\TestStubBuilder' => __DIR__ . '/..' . '/phpunit/phpunit/src/Framework/MockObject/TestStubBuilder.php',
         'PHPUnit\\Framework\\NativeType' => __DIR__ . '/..' . '/phpunit/phpunit/src/Framework/NativeType.php',
         'PHPUnit\\Framework\\NoChildTestSuiteException' => __DIR__ . '/..' . '/phpunit/phpunit/src/Framework/Exception/NoChildTestSuiteException.php',
         'PHPUnit\\Framework\\PhptAssertionFailedError' => __DIR__ . '/..' . '/phpunit/phpunit/src/Framework/Exception/PhptAssertionFailedError.php',
@@ -796,6 +804,7 @@ class ComposerStaticInitd03c0847b70e6deaf127f573f511de90
         'PHPUnit\\Logging\\TestDox\\TestTriggeredWarningSubscriber' => __DIR__ . '/..' . '/phpunit/phpunit/src/Logging/TestDox/TestResult/Subscriber/TestTriggeredWarningSubscriber.php',
         'PHPUnit\\Metadata\\After' => __DIR__ . '/..' . '/phpunit/phpunit/src/Metadata/After.php',
         'PHPUnit\\Metadata\\AfterClass' => __DIR__ . '/..' . '/phpunit/phpunit/src/Metadata/AfterClass.php',
+        'PHPUnit\\Metadata\\AllowMockObjectsWithoutExpectations' => __DIR__ . '/..' . '/phpunit/phpunit/src/Metadata/AllowMockObjectsWithoutExpectations.php',
         'PHPUnit\\Metadata\\Api\\CodeCoverage' => __DIR__ . '/..' . '/phpunit/phpunit/src/Metadata/Api/CodeCoverage.php',
         'PHPUnit\\Metadata\\Api\\DataProvider' => __DIR__ . '/..' . '/phpunit/phpunit/src/Metadata/Api/DataProvider.php',
         'PHPUnit\\Metadata\\Api\\Dependencies' => __DIR__ . '/..' . '/phpunit/phpunit/src/Metadata/Api/Dependencies.php',
@@ -1091,6 +1100,7 @@ class ComposerStaticInitd03c0847b70e6deaf127f573f511de90
         'PHPUnit\\TextUI\\Output\\Default\\ProgressPrinter\\TestTriggeredPhpNoticeSubscriber' => __DIR__ . '/..' . '/phpunit/phpunit/src/TextUI/Output/Default/ProgressPrinter/Subscriber/TestTriggeredPhpNoticeSubscriber.php',
         'PHPUnit\\TextUI\\Output\\Default\\ProgressPrinter\\TestTriggeredPhpWarningSubscriber' => __DIR__ . '/..' . '/phpunit/phpunit/src/TextUI/Output/Default/ProgressPrinter/Subscriber/TestTriggeredPhpWarningSubscriber.php',
         'PHPUnit\\TextUI\\Output\\Default\\ProgressPrinter\\TestTriggeredPhpunitDeprecationSubscriber' => __DIR__ . '/..' . '/phpunit/phpunit/src/TextUI/Output/Default/ProgressPrinter/Subscriber/TestTriggeredPhpunitDeprecationSubscriber.php',
+        'PHPUnit\\TextUI\\Output\\Default\\ProgressPrinter\\TestTriggeredPhpunitNoticeSubscriber' => __DIR__ . '/..' . '/phpunit/phpunit/src/TextUI/Output/Default/ProgressPrinter/Subscriber/TestTriggeredPhpunitNoticeSubscriber.php',
         'PHPUnit\\TextUI\\Output\\Default\\ProgressPrinter\\TestTriggeredPhpunitWarningSubscriber' => __DIR__ . '/..' . '/phpunit/phpunit/src/TextUI/Output/Default/ProgressPrinter/Subscriber/TestTriggeredPhpunitWarningSubscriber.php',
         'PHPUnit\\TextUI\\Output\\Default\\ProgressPrinter\\TestTriggeredWarningSubscriber' => __DIR__ . '/..' . '/phpunit/phpunit/src/TextUI/Output/Default/ProgressPrinter/Subscriber/TestTriggeredWarningSubscriber.php',
         'PHPUnit\\TextUI\\Output\\Default\\ResultPrinter' => __DIR__ . '/..' . '/phpunit/phpunit/src/TextUI/Output/Default/ResultPrinter.php',
