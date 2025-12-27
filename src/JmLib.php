@@ -2,10 +2,9 @@
 
 namespace Janmensik\Jmlib;
 
-use \DateTime;
+use DateTime;
 
 class JmLib {
-
     /**
      * Convert utf-8 string to ascii string (no diacritics).
      * Only for Latin-1 and Czech (common) chars.
@@ -54,7 +53,9 @@ class JmLib {
      * @return float|null Parsed float value or null if input is null.
      */
     public static function parseFloat(?string $str): ?float {
-        if (!isset($str)) return null;
+        if (!isset($str)) {
+            return null;
+        }
         $str = str_replace(" ", "", $str);
         $str = str_replace(",", ".", $str);
         if (preg_match("#-?([0-9]+\.?[0-9]{0,5})#", $str, $match)) {
@@ -71,19 +72,21 @@ class JmLib {
      * @return int|null Parsed timestamp or null if parsing fails and force is false.
      */
     public static function parseDate(?string $data, bool $force = false): ?int {
-        if (!$data) return null;
-        elseif (preg_match('/([0-9]{9,11})/', $data, $datum))
+        if (!$data) {
+            return null;
+        } elseif (preg_match('/([0-9]{9,11})/', $data, $datum)) {
             $output = $datum[1];
-        elseif (preg_match('/([0-9]{1,2})\\. ?([0-9]{1,2})\\. ?([1-9][0-9]{3})( ?-? *([0-9]{1,2}):([0-9]{1,2})([:.]([0-9]{1,2}))?)?/', $data, $datum))
+        } elseif (preg_match('/([0-9]{1,2})\\. ?([0-9]{1,2})\\. ?([1-9][0-9]{3})( ?-? *([0-9]{1,2}):([0-9]{1,2})([:.]([0-9]{1,2}))?)?/', $data, $datum)) {
             $output = mktime(isset($datum[5]) ? $datum[5] : 12, isset($datum[6]) ? $datum[6] : 0, isset($datum[8]) ? $datum[8] : 0, $datum[2], $datum[1], $datum[3]);
-        elseif (preg_match('/([0-9]{1,2})\\. ?([0-9]{1,2})\\. ?( ?-? *([0-9]{1,2}):([0-9]{1,2})([:.]([0-9]{1,2}))?)?/', $data, $datum2))
+        } elseif (preg_match('/([0-9]{1,2})\\. ?([0-9]{1,2})\\. ?( ?-? *([0-9]{1,2}):([0-9]{1,2})([:.]([0-9]{1,2}))?)?/', $data, $datum2)) {
             $output = mktime(isset($datum2[4]) ? $datum2[4] : 12, isset($datum2[5]) ? $datum2[5] : 0, isset($datum2[7]) ? $datum2[7] : 0, $datum2[2], $datum2[1]);
-        elseif (strtotime($data))
+        } elseif (strtotime($data)) {
             $output = strtotime($data);
-        elseif ($force)
+        } elseif ($force) {
             $output = mktime(12, 0, 0);
-        else
+        } else {
             $output = null;
+        }
         return $output;
     }
 
@@ -106,14 +109,18 @@ class JmLib {
      * @return int|false The position of the last occurrence of needle in haystack, or false if not found.
      */
     public static function strripos(string $haystack, string $needle, int $offset = 0): int|false {
-        if (!is_string($needle)) $needle = chr(intval($needle));
+        if (!is_string($needle)) {
+            $needle = chr(intval($needle));
+        }
         if ($offset < 0) {
             $temp_cut = strrev(substr($haystack, 0, abs($offset)));
         } else {
             $temp_cut = strrev(substr($haystack, 0, max((strlen($haystack) - $offset), 0)));
         }
         $found = self::stripos($temp_cut, strrev($needle));
-        if ($found === false) return false;
+        if ($found === false) {
+            return false;
+        }
         $pos = (strlen($haystack) - ($found + $offset + strlen($needle)));
         return $pos;
     }
@@ -124,15 +131,22 @@ class JmLib {
      * @return bool True on success, false on failure.
      */
     public static function rmdirr(string $dirname): bool {
-        if (is_file($dirname)) return unlink($dirname);
-        if (!is_dir($dirname)) return false;
+        if (is_file($dirname)) {
+            return unlink($dirname);
+        }
+        if (!is_dir($dirname)) {
+            return false;
+        }
         $dir = dir($dirname);
         while (false !== $entry = $dir->read()) {
-            if ($entry == '.' || $entry == '..') continue;
-            if (is_dir("$dirname/$entry"))
+            if ($entry == '.' || $entry == '..') {
+                continue;
+            }
+            if (is_dir("$dirname/$entry")) {
                 self::rmdirr("$dirname/$entry");
-            else
+            } else {
                 unlink("$dirname/$entry");
+            }
         }
         $dir->close();
         return rmdir($dirname);
@@ -145,14 +159,17 @@ class JmLib {
      */
     public static function getip(): string {
         # check ip from share internet
-        if (!empty($_SERVER['HTTP_CLIENT_IP']))
+        if (!empty($_SERVER['HTTP_CLIENT_IP'])) {
             $ip = $_SERVER['HTTP_CLIENT_IP'];
+        }
         # to check ip is pass from proxy
-        elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR']))
+        elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
             $ip = $_SERVER['HTTP_X_FORWARDED_FOR'];
+        }
         # regular ip
-        else
+        else {
             $ip = $_SERVER['REMOTE_ADDR'];
+        }
 
         return $ip;
     }
@@ -210,8 +227,12 @@ class JmLib {
         }
 
         $total_pages = (int) ceil($total / $on_page);
-        if ($current_page < 1) $current_page = 1;
-        if ($current_page > $total_pages) $current_page = $total_pages;
+        if ($current_page < 1) {
+            $current_page = 1;
+        }
+        if ($current_page > $total_pages) {
+            $current_page = $total_pages;
+        }
 
         $output = [
             'previous' => ($current_page > 1) ? $current_page - 1 : null,
@@ -269,8 +290,9 @@ class JmLib {
      * @return array|int|null An array with 'from' and 'till' timestamps, or a single timestamp if $return_only is set.
      */
     public static function getInterval(string $textname, ?int $now = null, ?string $return_only = null) {
-        if (!$now)
+        if (!$now) {
             $now = mktime(12, 0, 0);
+        }
 
         switch ($textname) {
             case "today":
@@ -307,10 +329,12 @@ class JmLib {
                 break;
             case "lastmonth":
             case 'last_month':
-                if (date('m') == date('m', strtotime('-1 month', $now)))
+                if (date('m') == date('m', strtotime('-1 month', $now))) {
                     $now = strtotime('-1 day', $now);
-                if (date('m') == date('m', strtotime('-1 month', $now)))
+                }
+                if (date('m') == date('m', strtotime('-1 month', $now))) {
                     $now = strtotime('-1 day', $now);
+                }
                 $from = strtotime('-1 month', $now);
                 $till = strtotime('-1 month', $now);
 
@@ -376,8 +400,9 @@ class JmLib {
      * @return int The number of days between the two timestamps
      */
     public static function countDays(?int $from = 0, ?int $till = 0): int {
-        if (!$from || !$till)
+        if (!$from || !$till) {
             return (0);
+        }
         $dd = date_diff(new DateTime('@' . intval($from)), new DateTime('@' . intval($till)));
 
         return (round($dd->days));

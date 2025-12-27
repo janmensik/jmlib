@@ -17,7 +17,7 @@ class AppData {
 
     public static function getInstance() {
         if (!self::$instance) {
-            self::$instance = new self;
+            self::$instance = new self();
         }
         return self::$instance;
     }
@@ -27,26 +27,31 @@ class AppData {
     }
 
     public function getData($key = null) {
-        if (!$key)
+        if (!$key) {
             return $this->data;
+        }
 
-        if (!isset($this->data[$key]))
+        if (!isset($this->data[$key])) {
             return null;
+        }
         return $this->data[$key];
     }
 
     public function getMessages() {
-        if (!isset($this->MESSAGES) || !is_array($this->MESSAGES))
+        if (!isset($this->MESSAGES) || !is_array($this->MESSAGES)) {
             return null;
+        }
         return $this->MESSAGES;
     }
 
     public function loadMessages() {
-        if (isset($this->MESSAGES) && is_array($this->MESSAGES) && count($this->MESSAGES))
+        if (isset($this->MESSAGES) && is_array($this->MESSAGES) && count($this->MESSAGES)) {
             return false;
+        }
 
-        if (!is_array(@$_SESSION['messages']))
+        if (!is_array(@$_SESSION['messages'])) {
             return (null);
+        }
 
         $this->MESSAGES = $_SESSION['messages'];
 
@@ -56,8 +61,9 @@ class AppData {
     }
 
     public function hibernateMessages() {
-        if (!isset($this->MESSAGES) || !is_array($this->MESSAGES))
+        if (!isset($this->MESSAGES) || !is_array($this->MESSAGES)) {
             return null;
+        }
 
         $_SESSION['messages'] = $this->MESSAGES;
 
@@ -71,8 +77,9 @@ class AppData {
     public function clearMessages($force_clear_messages = false) {
         $output = [];
 
-        if (!isset($this->MESSAGES) || !is_array($this->MESSAGES))
+        if (!isset($this->MESSAGES) || !is_array($this->MESSAGES)) {
             return null;
+        }
 
         unset($_SESSION['messages']);
 
@@ -87,8 +94,9 @@ class AppData {
 
 
     public function initiateFilters($page = null) {
-        if (!$page)
+        if (!$page) {
             return (true);
+        }
 
         if (isset($this->FILTERS[$page]) && is_array($this->FILTERS[$page])) {
             foreach ($this->FILTERS[$page] as $key => $value) {
@@ -103,25 +111,29 @@ class AppData {
     }
 
     public function registerFilters($page = null, $filters = null) {
-        if (!$page || !$filters)
+        if (!$page || !$filters) {
             return (true);
+        }
 
-        if (!is_array($filters) || !count($filters))
+        if (!is_array($filters) || !count($filters)) {
             return (false);
+        }
 
         $this->FILTERS_REGISTERED = $filters;
 
         unset($this->FILTERS[$page]);
 
-        foreach ($this->FILTERS_REGISTERED as $filter)
+        foreach ($this->FILTERS_REGISTERED as $filter) {
             $this->FILTERS[$page][$filter] = null;
+        }
 
         return (true);
     }
 
     public function clearFilters($page = null) {
-        if (!$page)
+        if (!$page) {
             return (true);
+        }
 
         unset($this->FILTERS[$page]);
 
@@ -129,20 +141,24 @@ class AppData {
     }
 
     public function getFilters($page = null) {
-        if (!$page)
+        if (!$page) {
             return (null);
+        }
 
-        if (!isset($this->FILTERS[$page]) || !is_array($this->FILTERS[$page]))
+        if (!isset($this->FILTERS[$page]) || !is_array($this->FILTERS[$page])) {
             return null;
+        }
         return $this->FILTERS[$page];
     }
 
     public function loadFilters() {
-        if (isset($this->FILTERS) && is_array($this->FILTERS) && count($this->FILTERS))
+        if (isset($this->FILTERS) && is_array($this->FILTERS) && count($this->FILTERS)) {
             return false;
+        }
 
-        if (!is_array(@$_SESSION['FILTERS']))
+        if (!is_array(@$_SESSION['FILTERS'])) {
             return (null);
+        }
 
         $this->FILTERS = $_SESSION['FILTERS'];
 
@@ -150,8 +166,9 @@ class AppData {
     }
 
     public function hibernateFilters() {
-        if (!isset($this->FILTERS) || !is_array($this->FILTERS))
+        if (!isset($this->FILTERS) || !is_array($this->FILTERS)) {
             return null;
+        }
 
         $_SESSION['FILTERS'] = $this->FILTERS;
         // session_write_close();
