@@ -48,7 +48,7 @@ class Modul {
     }
 
     # ...................................................................
-    function setLimit($limit = null) {
+    public function setLimit($limit = null) {
         if (is_numeric($limit) && $limit > 0) {
             $this->limit = (int) $limit;
         }
@@ -280,9 +280,8 @@ class Modul {
             } else {
                 return (array($data[$keys]));
             }
-        }
-        # zadny vysledek nebo chci stejny pocet jako mam = vyber vseho
-        else {
+        } else {
+            # zadny vysledek nebo chci stejny pocet jako mam = vyber vseho
             return ($data);
         }
     }
@@ -431,8 +430,8 @@ class Modul {
             }
         }
 
-        # special - INSERT ON DUPLICATE UPDATE
         if ($special == 'IODU') {
+            # special - INSERT ON DUPLICATE UPDATE
             $sql = $this->sql_insert . ' (' . implode(', ', array_keys($set)) . ') VALUES (' . implode(', ', $set) . ') ON DUPLICATE KEY UPDATE ';
             $keys = array_keys($set);
             unset($sql_temp);
@@ -441,17 +440,14 @@ class Modul {
                 $sql_temp[] .= $key . '=VALUES(' . $key . ')';
             }
             $sql .= implode(', ', $sql_temp);
-        }
-        # MULTI UPDATE
-        elseif (is_array($ids) && count($ids)) {
+        } elseif (is_array($ids) && count($ids)) {
+            # MULTI UPDATE
             $sql = $this->sql_update . ' SET ' . implode(', ', $sql_temp) . ' WHERE ' . $this->sql_table . '.' . $this->id_format . ' IN ("' . implode('", "', $ids) . '");';
-        }
-        # SINGLE UPDATE
-        elseif (is_numeric($ids)) {
+        } elseif (is_numeric($ids)) {
+            # SINGLE UPDATE
             $sql = $this->sql_update . ' SET ' . implode(', ', $sql_temp) . ' WHERE ' . $this->sql_table . '.' . $this->id_format . ' = "' . $ids . '";';
-        }
-        # INSERT
-        else {
+        } else {
+            # INSERT
             $sql = $this->sql_insert . ' (' . implode(', ', array_keys($set)) . ') VALUES (' . implode(', ', $set) . ');';
             $insert = true;
         }
@@ -499,7 +495,7 @@ class Modul {
         // --- M:N relationships handling ---
         if ($ids && !empty($mn_data)) {
             foreach ($mn_data as $key => $data) {
-                $this->_syncManyToMany($ids, $data, $this->many_to_many[$key]);
+                $this->syncManyToMany($ids, $data, $this->many_to_many[$key]);
             }
         }
         // ------------------------------------
@@ -520,7 +516,7 @@ class Modul {
      * @param array $config The configuration for the M:N relationship.
      * @return bool
      */
-    private function _syncManyToMany($main_ids, array $relations, array $config): bool {
+    private function syncManyToMany($main_ids, array $relations, array $config): bool {
         if (empty($main_ids) || empty($config['table']) || empty($config['main_key']) || empty($config['columns'])) {
             return false;
         }

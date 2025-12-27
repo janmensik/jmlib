@@ -6,7 +6,12 @@ use mysqli;
 use mysqli_result;
 
 class Database {
-    public $user, $password, $database, $server, $result, $db;
+    public $user;
+    public $password;
+    public $database;
+    public $server;
+    public $result;
+    public $db;
     public $messages = array(); # debug informace
 
     # ...................................................................
@@ -40,7 +45,7 @@ class Database {
      * Connects to the database.
      * @return mysqli|false The mysqli connection object on success, false on failure.
      */
-    private function _connect() {
+    private function connect() {
         # pripojeni MySQL databaze
         $this->db = new mysqli($this->server, $this->user, $this->password, $this->database);
 
@@ -68,7 +73,7 @@ class Database {
 
         # pokud neni pripojena databaze, pripoj
         if (!$this->db) {
-            $this->_connect();
+            $this->connect();
         }
 
         if ($this->db) {
