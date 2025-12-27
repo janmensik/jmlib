@@ -1,9 +1,9 @@
 <?php return array(
     'root' => array(
         'name' => 'janmensik/jmlib',
-        'pretty_version' => 'dev-main',
-        'version' => 'dev-main',
-        'reference' => '7ba930c480b2bf9f3f937db42055816f1d18e70f',
+        'pretty_version' => '1.1.1',
+        'version' => '1.1.1.0',
+        'reference' => null,
         'type' => 'library',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -47,9 +47,9 @@
             'dev_requirement' => false,
         ),
         'janmensik/jmlib' => array(
-            'pretty_version' => 'dev-main',
-            'version' => 'dev-main',
-            'reference' => '7ba930c480b2bf9f3f937db42055816f1d18e70f',
+            'pretty_version' => '1.1.1',
+            'version' => '1.1.1.0',
+            'reference' => null,
             'type' => 'library',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
@@ -200,9 +200,9 @@
             'dev_requirement' => false,
         ),
         'phpunit/php-code-coverage' => array(
-            'pretty_version' => '12.5.1',
-            'version' => '12.5.1.0',
-            'reference' => 'c467c59a4f6e04b942be422844e7a6352fa01b57',
+            'pretty_version' => '12.5.2',
+            'version' => '12.5.2.0',
+            'reference' => '4a9739b51cbcb355f6e95659612f92e282a7077b',
             'type' => 'library',
             'install_path' => __DIR__ . '/../phpunit/php-code-coverage',
             'aliases' => array(),
