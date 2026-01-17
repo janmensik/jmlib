@@ -1,9 +1,9 @@
 <?php return array(
     'root' => array(
         'name' => 'janmensik/jmlib',
-        'pretty_version' => '1.3.1',
-        'version' => '1.3.1.0',
-        'reference' => null,
+        'pretty_version' => 'dev-main',
+        'version' => 'dev-main',
+        'reference' => '28a517d68db12558c1d2fc27e688f164c2a842b0',
         'type' => 'library',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -47,9 +47,9 @@
             'dev_requirement' => true,
         ),
         'janmensik/jmlib' => array(
-            'pretty_version' => '1.3.1',
-            'version' => '1.3.1.0',
-            'reference' => null,
+            'pretty_version' => 'dev-main',
+            'version' => 'dev-main',
+            'reference' => '28a517d68db12558c1d2fc27e688f164c2a842b0',
             'type' => 'library',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
