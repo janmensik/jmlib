@@ -24,6 +24,7 @@ return array(
     'Psr\\Log\\' => array($vendorDir . '/psr/log/src'),
     'Psr\\Container\\' => array($vendorDir . '/psr/container/src'),
     'PhpParser\\' => array($vendorDir . '/nikic/php-parser/lib/PhpParser'),
+    'Pest\\Profanity\\' => array($vendorDir . '/pestphp/pest-plugin-profanity/src'),
     'Pest\\Plugin\\' => array($vendorDir . '/pestphp/pest-plugin/src'),
     'Pest\\Mutate\\' => array($vendorDir . '/pestphp/pest-plugin-mutate/src'),
     'Pest\\Arch\\' => array($vendorDir . '/pestphp/pest-plugin-arch/src'),

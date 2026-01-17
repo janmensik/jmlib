@@ -6,7 +6,7 @@
     "php": ">=8.0"
   },
   "require-dev": {
-    "pestphp/pest": "^3.0"
+    "pestphp/pest": "^4.3.1"
   },
   "license": "MIT",
   "authors": [
@@ -28,9 +28,6 @@
   "config": {
     "allow-plugins": {
       "pestphp/pest-plugin": true
-    },
-    "platform": {
-      "php": "8.2.0"
     }
   },
   "scripts": {
