@@ -1,6 +1,40 @@
 <?php
+namespace Janmensik\Jmlib;
 
-use Janmensik\Jmlib\JmLib;
+// --- Mocks for curl functions ---
+$mock_curl_exec_result = false;
+$mock_curl_info_filetime = -1;
+$mock_curl_url = '';
+
+function curl_init($url = null) {
+    global $mock_curl_url;
+    $mock_curl_url = $url;
+    return new \stdClass();
+}
+
+function curl_setopt($handle, $option, $value) {
+    return true;
+}
+
+function curl_exec($handle) {
+    global $mock_curl_exec_result;
+    return $mock_curl_exec_result;
+}
+
+function curl_getinfo($handle, $option = 0) {
+    global $mock_curl_info_filetime;
+    // Check for both constants as the code handles both
+    $check_t = defined('CURLINFO_FILETIME_T') ? CURLINFO_FILETIME_T : -999;
+    if ($option === CURLINFO_FILETIME || $option === $check_t) {
+        return $mock_curl_info_filetime;
+    }
+    return -1;
+}
+
+function curl_close($handle) {
+    return;
+}
+// --------------------------------
 
 # utf2ascii()
 test('utf2ascii conversion', function (string $utf, string $ascii) {
@@ -199,4 +233,29 @@ test('countdays returns expected number of days between 2 unix timestamps', func
    expect(JmLib::countdays(strtotime('2023-10-05 00:00:00'), strtotime('2023-10-01 00:00:00')))->toBe(4);
    expect(JmLib::countdays(0, strtotime('2023-10-01 00:00:00')))->toBe(0);
    expect(JmLib::countdays(strtotime('2023-10-01 00:00:00'), 0))->toBe(0);
+});
+
+# filemtimeRemote()
+test('filemtimeRemote returns timestamp on success', function () {
+    global $mock_curl_exec_result, $mock_curl_info_filetime, $mock_curl_url;
+
+    $mock_curl_exec_result = true;
+    $mock_curl_info_filetime = 1234567890;
+
+    $url = 'http://example.com/image.jpg';
+    $result = JmLib::filemtimeRemote($url);
+
+    expect($result)->toBe(1234567890);
+    expect($mock_curl_url)->toBe($url);
+
+    // Test caching (mock would return failure, but cache should return success)
+    $mock_curl_exec_result = false;
+    expect(JmLib::filemtimeRemote($url))->toBe(1234567890);
+});
+
+test('filemtimeRemote returns false on failure', function () {
+    global $mock_curl_exec_result;
+    $mock_curl_exec_result = false;
+
+    expect(JmLib::filemtimeRemote('http://fail.com'))->toBe(false);
 });

@@ -8,5 +8,6 @@ phpcs src
 ./vendor/bin/pest
 composer validate
 git tag _version_
+git push origin _version_
 
 git push

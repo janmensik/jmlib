@@ -405,4 +405,34 @@ class JmLib {
 
         return (round($dd->days));
     }
+
+    /**
+     * Gets the file modification time of a remote file
+     *
+     * @param string $remoteFile The URL or path of the remote file
+     * @return int|false The time of the last modification as a Unix timestamp, or false on failure
+     */
+    public static function filemtimeRemote(string $remoteFile): int|false {
+        static $cache = [];
+
+        if (isset($cache[$remoteFile])) {
+            return $cache[$remoteFile];
+        }
+
+        $ch = curl_init($remoteFile);
+        curl_setopt($ch, CURLOPT_NOBODY, true);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_FILETIME, true);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+
+        if (curl_exec($ch) !== false) {
+            $info_opt = defined('CURLINFO_FILETIME_T') ? CURLINFO_FILETIME_T : CURLINFO_FILETIME;
+            $timestamp = curl_getinfo($ch, $info_opt);
+            if ($timestamp !== -1) {
+                $cache[$remoteFile] = $timestamp;
+                return $timestamp;
+            }
+        }
+        return false;
+    }
 }
