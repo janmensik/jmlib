@@ -4,5 +4,7 @@
 /.github/
 /.vscode/
 
+/examples/cache/
+
 # Ignore environment files
 .env

@@ -39,9 +39,10 @@ namespace Janmensik\Jmlib;
 */
 
 class Thumbnail {
-    private $CONFIG = array(
-        'cache' => './cache/',
-        'types' => array('', '.gif', '.jpg', '.png'),
+    private $DEFAULT = array(
+        'cache_dir' => './cache/', // cache directory - ex cache
+        'cache_lifetime' => 24 * 60 * 60, // 24 hours - ex url_cache
+        'types' => array('.gif', '.jpg', '.png'),
         'max_ram_image_size' => 20000000, // 20 million pixels
     );
 
@@ -58,7 +59,18 @@ class Thumbnail {
         if (preg_match('/^https?:\/\//', $source)) {
             $clone->buildParams['url'] = $source;
         } else {
-            $clone->buildParams['file'] = $source;
+            if (file_exists($source)) {
+                $clone->buildParams['file'] = $source;
+            } else {
+                $trace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 1);
+                $callerDir = dirname($trace[0]['file']);
+                $path = $callerDir . DIRECTORY_SEPARATOR . $source;
+                if (file_exists($path)) {
+                    $clone->buildParams['file'] = $path;
+                } else {
+                    $clone->buildParams['file'] = $source;
+                }
+            }
         }
         return $clone;
     }
@@ -116,59 +128,26 @@ class Thumbnail {
     public function thumb($params) {
 
         # added by Jan Mensik - support url
-        if ($params['url']) {
-
-            # cache
-            if (!$params['url_cache'])
-                $params['url_cache'] = 24 * 60 * 60; /// 24 hour in seconds
-
-            # abych mel korektni priponu
-            unset($back);
-            if (preg_match('/^.+\.(jpg|gif|png|jpeg)$/i', $params['url'], $back))
-                $pripona = $back[1];
-            else
-                $pripona = 'url';
-
-            # vytvorim nazev souboru
-            $filename = $this->CONFIG['cache'] . 'remote-image.' . md5($params['url']) . '.' . $pripona;
-
-            $fmt_local = filemtime($filename);
-
-            # mam remote-image a url_cache zatim nevyprsel
-            if (file_exists($filename) && $fmt_local > time() - $params['url_cache']) {
-                $params['file'] = $filename;
-            }
-            # mam remote-image a vzdaleny soubor neni mladsi nez moje kopie (pokud nemam zakazano pomoci cache_forced)
-            elseif (!$params['cache_forced'] && file_exists($filename) && $fmt_local >= filemtime_remote($params['url']) && filemtime_remote($params['url']) > 0) {
-                $params['file'] = $filename;
-                touch($params['file']);
-            }
-            # need to download
-            else {
+        if (!empty($params['url'])) {
+            $remoteLoad = $this->downloadRemoteFile($params);
+            if (!$remoteLoad) {
+                return;
+            } elseif ($remoteLoad === 2) {
                 $def_no_cache = true;
-                # zkusim nacist z url
-                $file_data = @file($params['url']);
-                if (is_array($file_data))
-                    $input = @implode('', $file_data);
-                if ($input) {
-                    # ulozim do cache adresare
-                    $fp = fopen($filename, 'w');
-                    fwrite($fp, $input);
-                    fclose($fp);
-
-                    # zapisu nazev souboru do $params['file']
-                    $params['file'] = $filename;
-                }
-            }
-            if (!$params['name']) {
-                $params['name'] = 'remote-cache.' . md5($params['url'] . implode('', $params));
+                # downloaded remote file into $params['file']
+            } else {
+                $def_no_cache = false;
             }
         }
+echo ("Params file: " . ($params['file'] ?? 'n/a') . "\n");
+echo ("File: " . (file_exists($params['file']) ? 'yes' : 'no') . "\n");
+echo ("mTime: " . (filemtime($params['file']) ?? 'n/a') . "\n");
+
 
         # changed by Jan Mensik: no image = no error report
         if (empty($params['file']) || !file_exists($params['file'])) {
             # default image?
-            if ($params['default'] && file_exists($params['default'])) {
+            if (!empty($params['default']) && file_exists($params['default'])) {
                 $params['file'] = $params['default'];
             } else {
                 return;
@@ -201,7 +180,7 @@ class Thumbnail {
         }
 
         # Check RAM limit
-        if ($_SRC['width'] * $_SRC['height'] > $this->CONFIG['max_ram_image_size']) {
+        if ($_SRC['width'] * $_SRC['height'] > $this->DEFAULT['max_ram_image_size']) {
             return;
         }
 
@@ -228,7 +207,7 @@ class Thumbnail {
 
         # .........................................................................
         # Destination image size calculation based on longside/shortside (if set)
-        if (is_numeric($params['longside'])) {
+        if (!empty($params['longside']) && is_numeric($params['longside'])) {
             if ($_SRC['width'] < $_SRC['height']) {
                 $_DST['height'] = $params['longside'];
                 $_DST['width'] = round($params['longside'] / ($_SRC['height'] / $_SRC['width']));
@@ -236,7 +215,7 @@ class Thumbnail {
                 $_DST['width'] = $params['longside'];
                 $_DST['height'] = round($params['longside'] / ($_SRC['width'] / $_SRC['height']));
             }
-        } elseif (is_numeric($params['shortside'])) {
+        } elseif (!empty($params['shortside']) && is_numeric($params['shortside'])) {
             if ($_SRC['width'] < $_SRC['height']) {
                 $_DST['width'] = $params['shortside'];
                 $_DST['height'] = round($params['shortside'] / ($_SRC['width'] / $_SRC['height']));
@@ -295,9 +274,9 @@ class Thumbnail {
         }
 
         if ($params['name']) {
-            $_DST['file'] = $this->CONFIG['cache'] . $params['name'] . $this->CONFIG['types'][$_DST['type']];
+            $_DST['file'] = $this->DEFAULT['cache_dir'] . $params['name'] . $this->DEFAULT['types'][$_DST['type']];
         } else {
-            $_DST['file'] = $this->CONFIG['cache'] . $_SRC['hash'] . $this->CONFIG['types'][$_DST['type']];
+            $_DST['file'] = $this->DEFAULT['cache_dir'] . $_SRC['hash'] . $this->DEFAULT['types'][$_DST['type']];
         }
 
         if ($params['baseimgurl']) {
@@ -370,6 +349,61 @@ class Thumbnail {
         }
 
         return  $output;
+    }
+
+    private function downloadRemoteFile(array $params): int|bool {
+        # cache
+        if (empty($params['cache_lifetime'])) {
+            $params['cache_lifetime'] = $this->DEFAULT['cache_lifetime'];
+        }
+
+        # abych mel korektni priponu
+        unset($back);
+        if (preg_match('/^.+\.(jpg|gif|png|jpeg)$/i', $params['url'], $back))
+            $pripona = $back[1];
+        else
+            $pripona = 'url';
+
+        # vytvorim nazev souboru
+        $filename = $this->DEFAULT['cache_dir'] . 'remote-image.' . md5($params['url']) . '.' . $pripona;
+        echo ('Filename: ' . $filename . "\n");
+
+        $fmt_local = false;
+        if (file_exists($filename)) {
+            $fmt_local = filemtime($filename);
+        }
+
+        # mam remote-image a cache_lifetime zatim nevyprsel
+        if ($fmt_local > time() - $params['cache_lifetime']) {
+            $params['file'] = $filename;
+        }
+        # mam remote-image a vzdaleny soubor neni mladsi nez moje kopie (pokud nemam zakazano pomoci cache_forced)
+        elseif (empty($params['cache_forced']) && file_exists($filename) && $fmt_local >= filemtime_remote($params['url']) && filemtime_remote($params['url']) > 0) {
+            $params['file'] = $filename;
+            touch($params['file']);
+        }
+        # need to download
+        else {
+            $def_no_cache = true;
+            # zkusim nacist z url
+            $file_data = file($params['url']);
+            if (is_array($file_data))
+                $input = @implode('', $file_data);
+            if ($input) {
+                # ulozim do cache adresare
+                $fp = fopen($filename, 'w');
+                fwrite($fp, $input);
+                fclose($fp);
+
+                # zapisu nazev souboru do $params['file']
+                $params['file'] = $filename;
+            }
+        }
+        if (!$params['name']) {
+            $params['name'] = 'remote-cache.' . md5($params['url'] . implode('', $params));
+        }
+
+        return ($def_no_cache ? 2 : true);
     }
 
     private function unsharpMask($img, $amount, $radius, $threshold) {
