@@ -3,11 +3,21 @@
         "autoloading",
         "filemtime",
         "FILETIME",
+        "imgurl",
         "inarray",
+        "justimg",
+        "linkhtml",
+        "linkurl",
+        "longside",
         "mydb",
+        "noimgsize",
+        "nosize",
         "pestphp",
+        "Schedler",
+        "shortside",
         "stripos",
-        "strripos"
+        "strripos",
+        "unsharp"
     ],
     "cSpell.ignoreWords": [
         "ababa",
