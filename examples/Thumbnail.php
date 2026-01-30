@@ -10,6 +10,7 @@ $url = $thumb->from('test.jpg')
     ->height(100)
     ->generate();
 
+$thumb->debugPrint('raw');
 
 /*
 

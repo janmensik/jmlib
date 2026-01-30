@@ -39,9 +39,10 @@ namespace Janmensik\Jmlib;
 */
 
 class Thumbnail {
-    private $DEFAULT = array(
+    public $DEFAULT = array(
         'cache_dir' => './cache/', // cache directory - ex cache
         'cache_lifetime' => 24 * 60 * 60, // 24 hours - ex url_cache
+        'base_url' => './cache/', // base URL for img src - ex baseimgurl
         'types' => array('.gif', '.jpg', '.png'),
         'quality_jpeg' => 85,
         'max_ram_image_size' => 20000000, // 20 million pixels
@@ -57,12 +58,12 @@ class Thumbnail {
      */
     public function from(string $source): self {
         $clone = clone $this;
+        $clone->DEBUG = &$this->DEBUG;
         $clone->buildParams = [];
 
         $trace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 1);
         $clone->DEFAULT['caller_dir'] = dirname($trace[0]['file']);
-        $clone->DEBUG['caller_dir'] = $clone->DEFAULT['caller_dir'];
-        echo ("Path: " . $clone->DEFAULT['caller_dir'] . "\n");
+        $clone->DEBUG['params']['caller_dir'] = $clone->DEFAULT['caller_dir'];
 
         if (preg_match('/^https?:\/\//', $source)) {
             $clone->buildParams['url'] = $source;
@@ -157,11 +158,14 @@ class Thumbnail {
 
     public function thumb($params) {
 
-        echo ("Cache path: " . ($this->DEFAULT['caller_dir'] . DIRECTORY_SEPARATOR . $this->DEFAULT['cache_dir']) . "\n");
+        $this->DEBUG['defaults'] = $this->DEFAULT;
+        $this->DEBUG['input_params'] = $params;
+        $this->DEBUG['params']['cache_path_raw'] = $this->DEFAULT['caller_dir'] . DIRECTORY_SEPARATOR . $this->DEFAULT['cache_dir'];
+
         # cache dir control
         if ($real = realpath($this->DEFAULT['caller_dir'] . DIRECTORY_SEPARATOR . $this->DEFAULT['cache_dir'])) {
             $this->DEFAULT['cache_path'] = $real . DIRECTORY_SEPARATOR;
-            $this->DEBUG['cache_path'] = $this->DEFAULT['cache_path'];
+            $this->DEBUG['params']['cache_path'] = $this->DEFAULT['cache_path'];
         }
 
         # added by Jan Mensik - support url
@@ -175,11 +179,12 @@ class Thumbnail {
             } else {
                 $def_no_cache = false;
             }
+        } else {
+            $def_no_cache = false;
         }
 
-        echo ("Params file: " . ($params['file'] ?? 'n/a') . "\n");
-        echo ("File: " . (file_exists($params['file']) ? 'yes' : 'no') . "\n");
-        echo ("mTime: " . (filemtime($params['file']) ?? 'n/a') . "\n");
+        $this->DEBUG['params']['file_exists'] = file_exists($params['file']) ? 'yes' : 'no';
+        $this->DEBUG['params']['filemtime'] = filemtime($params['file']);
 
 
         # changed by Jan Mensik: no image = no error report
@@ -204,9 +209,7 @@ class Thumbnail {
         $_SRC['filename'] = basename($params['file']);
         $_SRC['modified'] = filemtime($params['file']);
 
-        echo ("SRC data: ");
-        print_r($_SRC);
-        echo ("\n");
+        $this->DEBUG['source'] = $_SRC;
 
         # .........................................................................
         # Set default parameters - logic for resizing
@@ -319,21 +322,22 @@ class Thumbnail {
         }
 
         if (!empty($params['name'])) {
-            $_DST['file'] = $this->DEFAULT['cache_path'] . $params['name'] . $this->DEFAULT['types'][$_DST['type']];
+            $_DST['filename'] = $params['name'] . $this->DEFAULT['types'][$_DST['type']];
         } else {
-            $_DST['file'] = $this->DEFAULT['cache_path'] . $_SRC['hash'] . $this->DEFAULT['types'][$_DST['type']];
+            $_DST['filename'] = $_SRC['hash'] . $this->DEFAULT['types'][$_DST['type']];
         }
 
-        if (!empty($params['baseimgurl'])) {
-            $_DST['imgurl'] = addslashes($params['baseimgurl']) . substr($_DST['file'], 1);
+        $_DST['file'] = $this->DEFAULT['cache_path'] . $_DST['filename'];
+
+        if (!empty($this->DEFAULT['base_url'])) {
+            $_DST['imgurl'] = addslashes($this->DEFAULT['base_url']) . substr($_DST['filename'], 1);
         } else {
-            $_DST['imgurl'] = $_DST['file'];
+            $_DST['imgurl'] = $_DST['filename'];
         }
 
         $output = $_DST['imgurl'];
 
-        echo ("Destination file: " . $_DST['file'] . "\n");
-
+        $this->DEBUG['destination'] = $_DST;
 
         # .........................................................................
         # Check if thumbnail already exists in cache and return it
@@ -518,5 +522,18 @@ class Thumbnail {
             }
         }
         return $img;
+    }
+
+    public function debugPrint(string $format = 'html'): void {
+        if ($format === 'raw') {
+            echo "\n=== DEBUG OUTPUT ===\n\n";
+            print_r($this->DEBUG);
+            echo "\n======= END ========\n";
+            return;
+        }
+
+        echo "<pre>\n";
+        print_r($this->DEBUG);
+        echo "</pre>\n";
     }
 }
