@@ -43,8 +43,10 @@ class Thumbnail {
         'cache_dir' => './cache/', // cache directory - ex cache
         'cache_lifetime' => 24 * 60 * 60, // 24 hours - ex url_cache
         'types' => array('.gif', '.jpg', '.png'),
+        'quality_jpeg' => 85,
         'max_ram_image_size' => 20000000, // 20 million pixels
     );
+    private $DEBUG = [];
 
     private $buildParams = [];
 
@@ -56,15 +58,20 @@ class Thumbnail {
     public function from(string $source): self {
         $clone = clone $this;
         $clone->buildParams = [];
+
+        $trace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 1);
+        $clone->DEFAULT['caller_dir'] = dirname($trace[0]['file']);
+        $clone->DEBUG['caller_dir'] = $clone->DEFAULT['caller_dir'];
+        echo ("Path: " . $clone->DEFAULT['caller_dir'] . "\n");
+
         if (preg_match('/^https?:\/\//', $source)) {
             $clone->buildParams['url'] = $source;
         } else {
             if (file_exists($source)) {
                 $clone->buildParams['file'] = $source;
             } else {
-                $trace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 1);
-                $callerDir = dirname($trace[0]['file']);
-                $path = $callerDir . DIRECTORY_SEPARATOR . $source;
+                $path = $clone->DEFAULT['caller_dir'] . DIRECTORY_SEPARATOR . $source;
+
                 if (file_exists($path)) {
                     $clone->buildParams['file'] = $path;
                 } else {
@@ -73,6 +80,12 @@ class Thumbnail {
             }
         }
         return $clone;
+    }
+
+    public function resize(int $width, int $height): self {
+        $this->buildParams['width'] = $width;
+        $this->buildParams['height'] = $height;
+        return $this;
     }
 
     public function width(int $width): self {
@@ -85,26 +98,38 @@ class Thumbnail {
         return $this;
     }
 
-    public function longSide(): self {
-        $this->buildParams['longside'] = true;
+    public function longSide(int $size): self {
+        $this->buildParams['longside'] = $size;
         unset($this->buildParams['shortside']);
         return $this;
     }
 
-    public function shortSide(): self {
-        $this->buildParams['shortside'] = true;
+    public function shortSide(int $size): self {
+        $this->buildParams['shortside'] = $size;
         unset($this->buildParams['longside']);
         return $this;
     }
 
-    public function crop(): self {
+    public function crop(?int $width = null, ?int $height = null): self {
+        if ($width !== null) {
+            $this->buildParams['width'] = $width;
+        }
+        if ($height !== null) {
+            $this->buildParams['height'] = $height;
+        }
         $this->buildParams['crop'] = true;
         $this->buildParams['fitin'] = false;
         unset($this->buildParams['longside'], $this->buildParams['shortside']);
         return $this;
     }
 
-    public function fit(): self {
+    public function fit(?int $width = null, ?int $height = null): self {
+        if ($width !== null) {
+            $this->buildParams['width'] = $width;
+        }
+        if ($height !== null) {
+            $this->buildParams['height'] = $height;
+        }
         $this->buildParams['crop'] = false;
         $this->buildParams['fitin'] = true;
         unset($this->buildParams['longside'], $this->buildParams['shortside']);
@@ -121,11 +146,23 @@ class Thumbnail {
         return $this;
     }
 
+    public function name(string $name): self {
+        $this->buildParams['name'] = $name;
+        return $this;
+    }
+
     public function generate(): ?string {
         return $this->thumb($this->buildParams);
     }
 
     public function thumb($params) {
+
+        echo ("Cache path: " . ($this->DEFAULT['caller_dir'] . DIRECTORY_SEPARATOR . $this->DEFAULT['cache_dir']) . "\n");
+        # cache dir control
+        if ($real = realpath($this->DEFAULT['caller_dir'] . DIRECTORY_SEPARATOR . $this->DEFAULT['cache_dir'])) {
+            $this->DEFAULT['cache_path'] = $real . DIRECTORY_SEPARATOR;
+            $this->DEBUG['cache_path'] = $this->DEFAULT['cache_path'];
+        }
 
         # added by Jan Mensik - support url
         if (!empty($params['url'])) {
@@ -139,9 +176,10 @@ class Thumbnail {
                 $def_no_cache = false;
             }
         }
-echo ("Params file: " . ($params['file'] ?? 'n/a') . "\n");
-echo ("File: " . (file_exists($params['file']) ? 'yes' : 'no') . "\n");
-echo ("mTime: " . (filemtime($params['file']) ?? 'n/a') . "\n");
+
+        echo ("Params file: " . ($params['file'] ?? 'n/a') . "\n");
+        echo ("File: " . (file_exists($params['file']) ? 'yes' : 'no') . "\n");
+        echo ("mTime: " . (filemtime($params['file']) ?? 'n/a') . "\n");
 
 
         # changed by Jan Mensik: no image = no error report
@@ -154,7 +192,8 @@ echo ("mTime: " . (filemtime($params['file']) ?? 'n/a') . "\n");
             }
         }
 
-        ### Info ber Source (SRC) holen
+        # .........................................................................
+        # load source image info
         $temp = getimagesize($params['file']);
 
         $_SRC['file']  = $params['file'];
@@ -165,6 +204,12 @@ echo ("mTime: " . (filemtime($params['file']) ?? 'n/a') . "\n");
         $_SRC['filename'] = basename($params['file']);
         $_SRC['modified'] = filemtime($params['file']);
 
+        echo ("SRC data: ");
+        print_r($_SRC);
+        echo ("\n");
+
+        # .........................................................................
+        # Set default parameters - logic for resizing
         if (empty($params['extrapolate'])) {
             $params['extrapolate'] = true;
         }
@@ -268,24 +313,26 @@ echo ("mTime: " . (filemtime($params['file']) ?? 'n/a') . "\n");
         # Prepare destination image file name and URL
 
         if (!empty($params['type'])) {
-            $_DST['type']    = $params['type'];
+            $_DST['type'] = $params['type'];
         } else {
-            $_DST['type']    = $_SRC['type'];
+            $_DST['type'] = $_SRC['type'];
         }
 
-        if ($params['name']) {
-            $_DST['file'] = $this->DEFAULT['cache_dir'] . $params['name'] . $this->DEFAULT['types'][$_DST['type']];
+        if (!empty($params['name'])) {
+            $_DST['file'] = $this->DEFAULT['cache_path'] . $params['name'] . $this->DEFAULT['types'][$_DST['type']];
         } else {
-            $_DST['file'] = $this->DEFAULT['cache_dir'] . $_SRC['hash'] . $this->DEFAULT['types'][$_DST['type']];
+            $_DST['file'] = $this->DEFAULT['cache_path'] . $_SRC['hash'] . $this->DEFAULT['types'][$_DST['type']];
         }
 
-        if ($params['baseimgurl']) {
+        if (!empty($params['baseimgurl'])) {
             $_DST['imgurl'] = addslashes($params['baseimgurl']) . substr($_DST['file'], 1);
         } else {
             $_DST['imgurl'] = $_DST['file'];
         }
 
         $output = $_DST['imgurl'];
+
+        echo ("Destination file: " . $_DST['file'] . "\n");
 
 
         # .........................................................................
@@ -329,7 +376,7 @@ echo ("mTime: " . (filemtime($params['file']) ?? 'n/a') . "\n");
         # Destination image creation and resampling
         $_DST['image'] = imagecreatetruecolor($_DST['width'], $_DST['height']);
         imagecopyresampled($_DST['image'], $_SRC['image'], 0, 0, $_DST['offset_w'], $_DST['offset_h'], $_DST['width'], $_DST['height'], $_SRC['width'], $_SRC['height']);
-        if ($params['sharpen'] != "false") {
+        if (!empty($params['sharpen'])) {
             $_DST['image'] = $this->unsharpMask($_DST['image'], 80, .5, 3);
         }
 
@@ -340,7 +387,7 @@ echo ("mTime: " . (filemtime($params['file']) ?? 'n/a') . "\n");
                 break;
             case 2:
                 Imageinterlace($_DST['image'], 1);
-                if (empty($params['quality'])) $params['quality'] = 85;
+                if (empty($params['quality'])) $params['quality'] = $this->DEFAULT['quality_jpeg'];
                 imagejpeg($_DST['image'], $_DST['file'], $params['quality']);
                 break;
             case 3:
