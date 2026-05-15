@@ -114,7 +114,7 @@ class UrlParameters {
     }
 
     public function getLink(string $string, string $options = ''): string {
-        return '<a href="' . $this->getUrl() . '"' . ($options !== '' ? ' ' . trim($options) : '') . '>' . $string . '</a>';
+        return '<a href="' . htmlspecialchars($this->getUrl(), ENT_QUOTES, 'UTF-8') . '"' . ($options !== '' ? ' ' . trim($options) : '') . '>' . $string . '</a>';
     }
 
     public function getBasename(): string {
