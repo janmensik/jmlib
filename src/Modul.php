@@ -674,7 +674,6 @@ class Modul {
             $sub[] = 'CAST(' . $value . ' AS CHAR)';
         }
         $word_query = 'CONCAT_WS(" ",' . implode(',', $sub) . ')';
-        //$word_query = 'z.nazev';
 
         # vytvorim si pole hledanych slov
         $input = mb_strtolower(preg_replace('/[^a-ž0-9 ]+/i', ' ', $input));
@@ -688,7 +687,6 @@ class Modul {
         foreach ($words as $word) {
             $query[] = $word_query . ' LIKE "%' . $word . '%"';
         }
-        //$query[] = $word_query . ' COLLATE utf8_general_ci LIKE "%' . $word . '%"';
         if ($separator_or) {
             $output = '(' . implode(' OR ', $query) . ')';
         } else {
