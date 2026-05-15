@@ -232,3 +232,78 @@ test('getGroupTotal returns row', function () {
     expect($result)->toBe(['total' => 100]);
     expect($db->queries[0])->toContain('SELECT COUNT(*) as total');
 });
+
+test('getIds with single ID returns array containing the row', function () {
+    $db = new MockDatabase();
+    $db->rows = [
+        ['id' => 10, 'name' => 'Charlie']
+    ];
+
+    $modul = new TestModul($db);
+    $modul->setSqlBase('SELECT * FROM users');
+    $modul->setSqlTable('users');
+    $modul->setIdFormat('id');
+
+    // Mute the specific PHP Warnings inside getId for testing purposes
+    $result = $modul->getIds(10);
+
+    expect($result)->toBe([
+        ['id' => 10, 'name' => 'Charlie']
+    ]);
+});
+
+test('getIds with array of IDs returns array of rows', function () {
+    $db = new MockDatabase();
+    $db->rows = [
+        ['id' => 10, 'name' => 'Charlie'],
+        ['id' => 20, 'name' => 'David']
+    ];
+
+    $modul = new TestModul($db);
+    $modul->setSqlBase('SELECT * FROM users');
+    $modul->setSqlTable('users');
+    $modul->setIdFormat('id');
+
+    $result = $modul->getIds([10, 20]);
+
+    // Note: the loop in getIds calls getId(10), then getId(20).
+    // Each call to getId runs $this->get(), which consumes one row from MockDatabase.
+    expect($result)->toBe([
+        ['id' => 10, 'name' => 'Charlie'],
+        ['id' => 20, 'name' => 'David']
+    ]);
+});
+
+test('getIds with null returns empty array or null-like structure depending on getId', function () {
+    $db = new MockDatabase();
+    $db->rows = [
+        false
+    ];
+
+    $modul = new TestModul($db);
+    $modul->setSqlBase('SELECT * FROM users');
+    $modul->setSqlTable('users');
+    $modul->setIdFormat('id');
+
+    $result = $modul->getIds(null);
+
+    // In Modul::getIds, if ids is null, it becomes [null].
+    // getId(null) is called.
+    // getId(null) calls get('users.id IN("")') and returns false when not found,
+    // but MockDatabase will return the row since we ignore the where clause in MockDatabase.
+    expect($result)->toBe([
+        false
+    ]);
+});
+
+test('getIds returns array of false when items not found', function () {
+    $db = new MockDatabase();
+    $modul = new TestModul($db);
+    $modul->setSqlBase('SELECT * FROM users');
+    $modul->setSqlTable('users');
+    $modul->setIdFormat('id');
+
+    $result = $modul->getIds(99);
+
+    expect($result)->toBe([false]);
+});

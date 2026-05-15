@@ -628,7 +628,14 @@ class Modul {
     # ...................................................................
     # $returnarray true znaci ze vysledek bude pole [] = data, pri false se vrati jen 1. vysledek data
     public function getIds($ids = null, $returnarray = true) {
-        return ($this->getId($ids, $returnarray));
+        if (!is_array($ids)) {
+            $ids = [$ids];
+        }
+        $out = [];
+        foreach ($ids as $id) {
+            $out[] = $this->getId($id);
+        }
+        return $out;
     }
 
     # ...................................................................
