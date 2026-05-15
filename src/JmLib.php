@@ -327,10 +327,7 @@ class JmLib {
                 break;
             case "lastmonth":
             case 'last_month':
-                if (date('m') == date('m', strtotime('-1 month', $now))) {
-                    $now = strtotime('-1 day', $now);
-                }
-                if (date('m') == date('m', strtotime('-1 month', $now))) {
+                while (date('m', $now) == date('m', strtotime('-1 month', $now))) {
                     $now = strtotime('-1 day', $now);
                 }
                 $from = strtotime('-1 month', $now);
