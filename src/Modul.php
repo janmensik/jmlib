@@ -153,19 +153,32 @@ class Modul {
 
         $this->cache_sql = $sql;
 
+        $text_mappings = [];
+        if (is_array($this->text) && !empty($this->text)) {
+            foreach ($this->text as $t_lang => $t_data) {
+                foreach ($t_data as $t_key => $t_value) {
+                    $text_mappings[$t_key][] = [$t_key . '_' . $t_lang, $t_value];
+                }
+            }
+        }
+
         # SQL dotaz
         $this->DB->query($sql, get_class($this) . ' -> get');
         while ($radka = $this->DB->getRow()) {
             # prepis hodnot statusu na CZ
-            if (is_array($this->text)) {
-                foreach ($this->text as $t_lang => $t_data) {
-                    foreach ($t_data as $t_key => $t_value) {
-                        if (isset($radka[$t_key]) && !empty($t_value[$radka[$t_key]]) && isset($t_value[$radka[$t_key]])) {
-                            $radka[$t_key . '_' . $t_lang] = $t_value[$radka[$t_key]];
-                        } elseif (isset($radka[$t_key])) {
-                            $radka[$t_key . '_' . $t_lang] = $radka[$t_key];
+            if (!empty($text_mappings)) {
+                foreach ($text_mappings as $t_key => $mappings) {
+                    if (isset($radka[$t_key])) {
+                        $val = $radka[$t_key];
+                        foreach ($mappings as $mapping) {
+                            $target_key = $mapping[0];
+                            $t_value = $mapping[1];
+                            if (!empty($t_value[$val]) && isset($t_value[$val])) {
+                                $radka[$target_key] = $t_value[$val];
+                            } else {
+                                $radka[$target_key] = $val;
+                            }
                         }
-                        //$radka[$t_key . '_' . $t_lang] = !empty($radka[$t_key]) && $t_value[$radka[$t_key]] ? $t_value[$radka[$t_key]] : $radka[$t_key];
                     }
                 }
             }
