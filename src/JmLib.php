@@ -320,9 +320,6 @@ class JmLib {
                 if (date('m') == date('m', strtotime('-1 month', $now))) {
                     $now = strtotime('-1 day', $now);
                 }
-                if (date('m') == date('m', strtotime('-1 month', $now))) {
-                    $now = strtotime('-1 day', $now);
-                }
                 $from = strtotime('-1 month', $now);
                 $till = strtotime('-1 month', $now);
 
