@@ -695,7 +695,7 @@ class Modul {
         //$word_query = 'z.nazev';
 
         # vytvorim si pole hledanych slov
-        $input = mb_strtolower(preg_replace('/[^a-ž0-9 ]+/i', ' ', $input));
+        $input = mb_strtolower(preg_replace('/[^a-ž0-9 ]+/ui', ' ', $input));
         $input = preg_replace('/ +/', ' ', $input);
         $words = explode(' ', $input);
 
@@ -703,10 +703,18 @@ class Modul {
         if (!is_array($words)) {
             return (null);
         }
+        $query = [];
         foreach ($words as $word) {
-            $query[] = $word_query . ' LIKE "%' . $word . '%"';
+            $word = $this->sanitize($word);
+            if ($word !== "" && $word !== false) {
+                $query[] = $word_query . ' LIKE "%' . $word . '%"';
+            }
         }
         //$query[] = $word_query . ' COLLATE utf8_general_ci LIKE "%' . $word . '%"';
+        if (empty($query)) {
+            return (null);
+        }
+
         if ($separator_or) {
             $output = '(' . implode(' OR ', $query) . ')';
         } else {
