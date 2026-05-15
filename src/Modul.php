@@ -524,39 +524,15 @@ class Modul {
         $main_ids = is_array($main_ids) ? $main_ids : [$main_ids];
         $main_id = reset($main_ids); // Currently handles single main ID sync
 
-        // 1. Get existing relations from DB
-        // $existing_relations_raw = $this->DB->getAllRows(
-        //  $this->DB->query('SELECT * FROM ' . $config['table'] . ' WHERE ' . $config['main_key'] . ' = ' . (int)$main_id . ';')
-        // );
-
-        // $existing_relations = [];
-        // if (is_array($existing_relations_raw)) {
-        //  foreach ($existing_relations_raw as $row) {
-        //      $existing_relations[] = $row;
-        //  }
-        // }
-
-        // 2. Find relations to add and to delete
-        $to_add = $relations; // Start with all new relations
-        // $to_delete_ids = array_column($existing_relations, 'id');
-
         // This simple implementation deletes all and re-inserts.
-        // A more complex implementation would compare $relations with $existing_relations
-        // to find the exact records to add and delete, which is more efficient.
-        // For now, we stick to the original logic but encapsulated here.
-
-        // 3. Delete old relations
-        // if (!empty($to_delete_ids)) {
-        //  $this->DB->query('DELETE FROM ' . $config['table'] . ' WHERE id IN (' . implode(',', $to_delete_ids) . ');');
-        // }
         $this->DB->query('DELETE FROM ' . $config['table'] . ' WHERE ' . $config['main_key'] . ' = ' . (int)$main_id . ';');
 
         // 4. Insert new relations
-        if (!empty($to_add)) {
+        if (!empty($relations)) {
             $sql_rows = [];
             $insert_columns = array_merge([$config['main_key']], $config['columns']);
 
-            foreach ($to_add as $relation_data) {
+            foreach ($relations as $relation_data) {
                 $values = [$main_id]; // Start with the main foreign key
                 // Loop through the configured columns to ensure correct order
                 foreach ($config['columns'] as $column_name) {
@@ -565,7 +541,6 @@ class Modul {
                 }
                 $sql_rows[] = '(' . implode(', ', $values) . ')';
             }
-            // echo ('INSERT INTO ' . $config['table'] . ' (' . implode(', ', $insert_columns) . ') VALUES ' . implode(', ', $sql_rows) . ';');
             $this->DB->query('INSERT INTO ' . $config['table'] . ' (' . implode(', ', $insert_columns) . ') VALUES ' . implode(', ', $sql_rows) . ';');
         }
 
