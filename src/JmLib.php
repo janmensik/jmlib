@@ -158,18 +158,8 @@ class JmLib {
      * @return string The IP address of the client.
      */
     public static function getip(): string {
-        if (!empty($_SERVER['HTTP_CLIENT_IP'])) {
-            # check ip from share internet
-            $ip = $_SERVER['HTTP_CLIENT_IP'];
-        } elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-            # to check ip is pass from proxy
-            $ip = $_SERVER['HTTP_X_FORWARDED_FOR'];
-        } else {
-            # regular ip
-            $ip = $_SERVER['REMOTE_ADDR'];
-        }
-
-        return $ip;
+        # Only trust REMOTE_ADDR for security reasons as HTTP headers can be spoofed.
+        return $_SERVER['REMOTE_ADDR'] ?? '';
     }
 
     /**
