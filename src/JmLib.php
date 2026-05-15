@@ -24,13 +24,16 @@ class JmLib {
     }
 
     /**
-     * Create a simple password string.
+     * Create a simple password string using a cryptographically secure PRNG.
      * @param int $length Length of the generated password. Default is 5.
-     * @param string|null $salt Optional salt to enhance uniqueness. Default is 'secret'.
+     * @param string|null $salt Optional salt (deprecated, kept for signature compatibility).
      * @return string Generated password string.
      */
     public static function createPassword(int $length = 5, ?string $salt = 'secret'): string {
-        return (substr(sha1(time() . $salt), 0, $length));
+        if ($length <= 0) {
+            return '';
+        }
+        return substr(bin2hex(random_bytes((int) ceil($length / 2))), 0, $length);
     }
 
     /**
