@@ -30,7 +30,17 @@ class JmLib {
      * @return string Generated password string.
      */
     public static function createPassword(int $length = 5, ?string $salt = 'secret'): string {
-        return (substr(sha1(time() . $salt), 0, $length));
+        if ($length <= 0) {
+            return '';
+        }
+        // Calculate the number of bytes required to generate at least the requested length
+        // Since bin2hex doubles the length, we need ceil($length / 2) bytes
+        $bytesLength = (int) ceil($length / 2);
+
+        $randomBytes = random_bytes($bytesLength);
+        $hexString = bin2hex($randomBytes);
+
+        return substr($hexString, 0, $length);
     }
 
     /**

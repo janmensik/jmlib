@@ -134,12 +134,15 @@ test('pagination handles edge cases', function () {
 });
 
 # createPassword()
-test('createPassword returns hex substring of requested length', function () {
-    $pw = JmLib::createPassword(6, 'testsalt');
-    expect(is_string($pw))->toBe(true);
-    expect(strlen($pw))->toBe(6);
-    // sha1 produces hex chars -> check hex
-    expect((bool)preg_match('/^[0-9a-fA-F]{6}$/', $pw))->toBe(true);
+test('createPassword returns hex substring of requested length and is random', function () {
+    $pw1 = JmLib::createPassword(6, 'testsalt');
+    expect(is_string($pw1))->toBe(true);
+    expect(strlen($pw1))->toBe(6);
+    // bin2hex produces hex chars -> check hex
+    expect((bool)preg_match('/^[0-9a-fA-F]{6}$/', $pw1))->toBe(true);
+
+    $pw2 = JmLib::createPassword(6, 'testsalt');
+    expect($pw1)->not->toBe($pw2);
 });
 
 # getUrl()
