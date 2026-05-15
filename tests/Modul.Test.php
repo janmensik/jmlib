@@ -77,11 +77,35 @@ test('getLimit and setLimit', function () {
 
     expect($modul->getLimit())->toBe(20); // Default
 
-    $modul->setLimit(50);
+    // Valid integer limit
+    $oldValue = $modul->setLimit(50);
     expect($modul->getLimit())->toBe(50);
+    expect($oldValue)->toBe(50);
 
-    $modul->setLimit(-5); // Invalid
-    expect($modul->getLimit())->toBe(50); // Should not change
+    // Invalid limit: negative integer (limit should not change)
+    $oldValue2 = $modul->setLimit(-5);
+    expect($modul->getLimit())->toBe(50);
+    expect($oldValue2)->toBe(50);
+
+    // Invalid limit: zero (limit should not change)
+    $oldValue3 = $modul->setLimit(0);
+    expect($modul->getLimit())->toBe(50);
+    expect($oldValue3)->toBe(50);
+
+    // Invalid limit: null (limit should not change)
+    $oldValue4 = $modul->setLimit(null);
+    expect($modul->getLimit())->toBe(50);
+    expect($oldValue4)->toBe(50);
+
+    // Valid limit: numeric string
+    $oldValue5 = $modul->setLimit('30');
+    expect($modul->getLimit())->toBe(30);
+    expect($oldValue5)->toBe(30);
+
+    // Invalid limit: non-numeric string (limit should not change)
+    $oldValue6 = $modul->setLimit('invalid');
+    expect($modul->getLimit())->toBe(30);
+    expect($oldValue6)->toBe(30);
 });
 
 test('get executes query and returns data', function () {
