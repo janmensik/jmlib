@@ -452,10 +452,7 @@ class Modul {
             $insert = true;
         }
 
-        //$this->DB->query ('START TRANSACTION;');
         $this->DB->query($sql);
-
-        //echo ($sql . '<br>\n***************************************************\n<hr>\n***************************************************\n<br>');
 
         $affected_rows = $this->DB->getNumAffected();
 
