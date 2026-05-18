@@ -22,7 +22,7 @@ class UrlParameters {
         foreach ($list as $item) {
             $pair = explode('=', $item, 2);
             if (count($pair) === 2) {
-                if (preg_match('/^(.*)\[\]$/', urldecode($pair[0]))) {
+                if (str_ends_with(urldecode($pair[0]), '[]')) {
                     if (!isset($this->parameters[$pair[0]]) || !is_array($this->parameters[$pair[0]])) {
                         $this->parameters[$pair[0]] = [];
                     }
@@ -74,7 +74,7 @@ class UrlParameters {
             unset($this->parameters[$parameter]);
         } else {
             $decodedParameter = urldecode($parameter);
-            if (preg_match('/^(.*)\[\]$/', $decodedParameter)) {
+            if (str_ends_with($decodedParameter, '[]')) {
                 if (!isset($this->parameters[$decodedParameter]) || !is_array($this->parameters[$decodedParameter])) {
                     $this->parameters[$decodedParameter] = [];
                 }
