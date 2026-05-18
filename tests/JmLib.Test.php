@@ -159,20 +159,20 @@ test('getUrl handles various parameter options', function () {
 });
 
 # getip()
-test('getip returns the appropriate server IP sources in correct order of precedence', function () {
+test('getip returns REMOTE_ADDR and ignores potentially spoofed headers', function () {
     // 1. REMOTE_ADDR as baseline
     $_SERVER['HTTP_CLIENT_IP'] = '';
     $_SERVER['HTTP_X_FORWARDED_FOR'] = '';
     $_SERVER['REMOTE_ADDR'] = '127.0.0.1';
     expect(JmLib::getip())->toBe('127.0.0.1');
 
-    // 2. HTTP_X_FORWARDED_FOR should be preferred over REMOTE_ADDR
+    // 2. HTTP_X_FORWARDED_FOR should be ignored
     $_SERVER['HTTP_X_FORWARDED_FOR'] = '192.168.1.1';
-    expect(JmLib::getip())->toBe('192.168.1.1');
+    expect(JmLib::getip())->toBe('127.0.0.1');
 
-    // 3. HTTP_CLIENT_IP should be preferred over all others
+    // 3. HTTP_CLIENT_IP should be ignored
     $_SERVER['HTTP_CLIENT_IP'] = '10.0.0.1';
-    expect(JmLib::getip())->toBe('10.0.0.1');
+    expect(JmLib::getip())->toBe('127.0.0.1');
 });
 
 # rmdirr()

@@ -24,13 +24,16 @@ class JmLib {
     }
 
     /**
-     * Create a simple password string.
+     * Create a simple password string using a cryptographically secure PRNG.
      * @param int $length Length of the generated password. Default is 5.
-     * @param string|null $salt Optional salt to enhance uniqueness. Default is 'secret'.
+     * @param string|null $salt Optional salt (deprecated, kept for signature compatibility).
      * @return string Generated password string.
      */
     public static function createPassword(int $length = 5, ?string $salt = 'secret'): string {
-        return (substr(sha1(time() . $salt), 0, $length));
+        if ($length <= 0) {
+            return '';
+        }
+        return substr(bin2hex(random_bytes((int) ceil($length / 2))), 0, $length);
     }
 
     /**
@@ -158,18 +161,8 @@ class JmLib {
      * @return string The IP address of the client.
      */
     public static function getip(): string {
-        if (!empty($_SERVER['HTTP_CLIENT_IP'])) {
-            # check ip from share internet
-            $ip = $_SERVER['HTTP_CLIENT_IP'];
-        } elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-            # to check ip is pass from proxy
-            $ip = $_SERVER['HTTP_X_FORWARDED_FOR'];
-        } else {
-            # regular ip
-            $ip = $_SERVER['REMOTE_ADDR'];
-        }
-
-        return $ip;
+        # Only trust REMOTE_ADDR for security reasons as HTTP headers can be spoofed.
+        return $_SERVER['REMOTE_ADDR'] ?? '';
     }
 
     /**
@@ -327,9 +320,6 @@ class JmLib {
                 break;
             case "lastmonth":
             case 'last_month':
-                if (date('m') == date('m', strtotime('-1 month', $now))) {
-                    $now = strtotime('-1 day', $now);
-                }
                 if (date('m') == date('m', strtotime('-1 month', $now))) {
                     $now = strtotime('-1 day', $now);
                 }

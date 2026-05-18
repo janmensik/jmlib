@@ -73,12 +73,13 @@ class UrlParameters {
         if ($value === false) {
             unset($this->parameters[$parameter]);
         } else {
-            if (str_ends_with(urldecode($parameter), '[]')) {
-                if (!isset($this->parameters[urldecode($parameter)]) || !is_array($this->parameters[urldecode($parameter)])) {
-                    $this->parameters[urldecode($parameter)] = [];
+            $decodedParameter = urldecode($parameter);
+            if (str_ends_with($decodedParameter, '[]')) {
+                if (!isset($this->parameters[$decodedParameter]) || !is_array($this->parameters[$decodedParameter])) {
+                    $this->parameters[$decodedParameter] = [];
                 }
-                if (!in_array($value, $this->parameters[urldecode($parameter)], true)) {
-                    $this->parameters[urldecode($parameter)][] = $value;
+                if (!in_array($value, $this->parameters[$decodedParameter], true)) {
+                    $this->parameters[$decodedParameter][] = $value;
                 }
             } else {
                 $this->parameters[$parameter] = $value;

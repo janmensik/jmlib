@@ -153,19 +153,32 @@ class Modul {
 
         $this->cache_sql = $sql;
 
+        $text_mappings = [];
+        if (is_array($this->text) && !empty($this->text)) {
+            foreach ($this->text as $t_lang => $t_data) {
+                foreach ($t_data as $t_key => $t_value) {
+                    $text_mappings[$t_key][] = [$t_key . '_' . $t_lang, $t_value];
+                }
+            }
+        }
+
         # SQL dotaz
         $this->DB->query($sql, get_class($this) . ' -> get');
         while ($radka = $this->DB->getRow()) {
             # prepis hodnot statusu na CZ
-            if (is_array($this->text)) {
-                foreach ($this->text as $t_lang => $t_data) {
-                    foreach ($t_data as $t_key => $t_value) {
-                        if (isset($radka[$t_key]) && !empty($t_value[$radka[$t_key]]) && isset($t_value[$radka[$t_key]])) {
-                            $radka[$t_key . '_' . $t_lang] = $t_value[$radka[$t_key]];
-                        } elseif (isset($radka[$t_key])) {
-                            $radka[$t_key . '_' . $t_lang] = $radka[$t_key];
+            if (!empty($text_mappings)) {
+                foreach ($text_mappings as $t_key => $mappings) {
+                    if (isset($radka[$t_key])) {
+                        $val = $radka[$t_key];
+                        foreach ($mappings as $mapping) {
+                            $target_key = $mapping[0];
+                            $t_value = $mapping[1];
+                            if (!empty($t_value[$val]) && isset($t_value[$val])) {
+                                $radka[$target_key] = $t_value[$val];
+                            } else {
+                                $radka[$target_key] = $val;
+                            }
                         }
-                        //$radka[$t_key . '_' . $t_lang] = !empty($radka[$t_key]) && $t_value[$radka[$t_key]] ? $t_value[$radka[$t_key]] : $radka[$t_key];
                     }
                 }
             }
@@ -452,10 +465,7 @@ class Modul {
             $insert = true;
         }
 
-        //$this->DB->query ('START TRANSACTION;');
         $this->DB->query($sql);
-
-        //echo ($sql . '<br>\n***************************************************\n<hr>\n***************************************************\n<br>');
 
         $affected_rows = $this->DB->getNumAffected();
 
@@ -524,31 +534,13 @@ class Modul {
         $main_ids = is_array($main_ids) ? $main_ids : [$main_ids];
         $main_id = reset($main_ids); // Currently handles single main ID sync
 
-        // 1. Get existing relations from DB
-        // $existing_relations_raw = $this->DB->getAllRows(
-        //  $this->DB->query('SELECT * FROM ' . $config['table'] . ' WHERE ' . $config['main_key'] . ' = ' . (int)$main_id . ';')
-        // );
-
-        // $existing_relations = [];
-        // if (is_array($existing_relations_raw)) {
-        //  foreach ($existing_relations_raw as $row) {
-        //      $existing_relations[] = $row;
-        //  }
-        // }
-
-        // 2. Find relations to add and to delete
         $to_add = $relations; // Start with all new relations
-        // $to_delete_ids = array_column($existing_relations, 'id');
 
         // This simple implementation deletes all and re-inserts.
         // A more complex implementation would compare $relations with $existing_relations
         // to find the exact records to add and delete, which is more efficient.
         // For now, we stick to the original logic but encapsulated here.
 
-        // 3. Delete old relations
-        // if (!empty($to_delete_ids)) {
-        //  $this->DB->query('DELETE FROM ' . $config['table'] . ' WHERE id IN (' . implode(',', $to_delete_ids) . ');');
-        // }
         $this->DB->query('DELETE FROM ' . $config['table'] . ' WHERE ' . $config['main_key'] . ' = ' . (int)$main_id . ';');
 
         // 4. Insert new relations
@@ -692,7 +684,6 @@ class Modul {
             $sub[] = 'CAST(' . $value . ' AS CHAR)';
         }
         $word_query = 'CONCAT_WS(" ",' . implode(',', $sub) . ')';
-        //$word_query = 'z.nazev';
 
         # vytvorim si pole hledanych slov
         $input = mb_strtolower(preg_replace('/[^a-ž0-9 ]+/i', ' ', $input));
@@ -706,7 +697,6 @@ class Modul {
         foreach ($words as $word) {
             $query[] = $word_query . ' LIKE "%' . $word . '%"';
         }
-        //$query[] = $word_query . ' COLLATE utf8_general_ci LIKE "%' . $word . '%"';
         if ($separator_or) {
             $output = '(' . implode(' OR ', $query) . ')';
         } else {

@@ -1,10 +1,1 @@
-# Custom folder with old functions to implement int JmLib
-/todo/
-
-/.github/
-/.vscode/
-
-/examples/cache/
-
-# Ignore environment files
-.env
+.phpunit.cache
