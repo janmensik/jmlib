@@ -89,9 +89,14 @@ class Database {
             $elapsed = round(((float) $usec + (float) $sec) - $time_start, 5);
             $this->messages['total_time'] += $elapsed;
             $this->messages['total_queries']++;
-            $this->messages['queries_summary']['undefined'] = 0;
+            if (!isset($this->messages['queries_summary']['undefined'])) {
+                $this->messages['queries_summary']['undefined'] = 0;
+            }
             if ($query_name && $query_name != '') {
-                @$this->messages['queries_summary'][$query_name]++;
+                if (!isset($this->messages['queries_summary'][$query_name])) {
+                    $this->messages['queries_summary'][$query_name] = 0;
+                }
+                $this->messages['queries_summary'][$query_name]++;
                 $this->messages['queries'][] = array('name' => $query_name, 'time' => (string) $elapsed, 'query' => $query);
             } else {
                 $this->messages['queries_summary']['undefined']++;

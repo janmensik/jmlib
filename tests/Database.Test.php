@@ -52,7 +52,13 @@ function mysqli_insert_id($link) {
     return $mock_insert_id;
 }
 
+$mock_free_result_called = false;
+$mock_free_result_param = null;
+
 function mysqli_free_result($result) {
+    global $mock_free_result_called, $mock_free_result_param;
+    $mock_free_result_called = true;
+    $mock_free_result_param = $result;
     return true;
 }
 
@@ -86,11 +92,13 @@ class MockResult {
 // --- Tests ---
 
 beforeEach(function () {
-    global $mock_query_results, $mock_last_query, $mock_affected_rows, $mock_insert_id;
+    global $mock_query_results, $mock_last_query, $mock_affected_rows, $mock_insert_id, $mock_free_result_called, $mock_free_result_param;
     $mock_query_results = [];
     $mock_last_query = null;
     $mock_affected_rows = 0;
     $mock_insert_id = 0;
+    $mock_free_result_called = false;
+    $mock_free_result_param = null;
 });
 
 test('constructor initializes properties', function () {
@@ -244,4 +252,35 @@ test('numRows falls back to affected rows if no result rows', function () {
 
     $db->query('UPDATE users SET x=1');
     expect($db->numRows())->toBe(10);
+});
+test('freeResult returns false if no db connection', function () {
+    $db = new Database('localhost', 'mydb', 'user', 'pass');
+    // No db connection set explicitly
+
+    expect($db->freeResult())->toBeFalse();
+});
+
+test('freeResult frees explicit result', function () {
+    global $mock_free_result_called, $mock_free_result_param;
+    $db = new Database('localhost', 'mydb', 'user', 'pass');
+    $db->db = new \stdClass();
+
+    $result_mock = new \stdClass();
+
+    expect($db->freeResult($result_mock))->toBeTrue();
+    expect($mock_free_result_called)->toBeTrue();
+    expect($mock_free_result_param)->toBe($result_mock);
+});
+
+test('freeResult frees internal result if no explicit result provided', function () {
+    global $mock_free_result_called, $mock_free_result_param;
+    $db = new Database('localhost', 'mydb', 'user', 'pass');
+    $db->db = new \stdClass();
+
+    $internal_result = new \stdClass();
+    $db->result = $internal_result;
+
+    expect($db->freeResult())->toBeTrue();
+    expect($mock_free_result_called)->toBeTrue();
+    expect($mock_free_result_param)->toBe($internal_result);
 });
