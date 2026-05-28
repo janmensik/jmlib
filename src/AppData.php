@@ -3,11 +3,11 @@
 namespace Janmensik\Jmlib;
 
 class AppData {
-    private static $instance;
-    public $data = [];
-    public $MESSAGES = [];
-    public $FILTERS = [];
-    private $FILTERS_REGISTERED = [];
+    private static ?AppData $instance = null;
+    public array $data = [];
+    public array $MESSAGES = [];
+    public array $FILTERS = [];
+    private array $FILTERS_REGISTERED = [];
 
     private function __construct() {
     }
@@ -15,18 +15,18 @@ class AppData {
         trigger_error('Cloning of singleton instances is forbidden', E_USER_ERROR);
     }
 
-    public static function getInstance() {
+    public static function getInstance(): AppData {
         if (!self::$instance) {
             self::$instance = new self();
         }
         return self::$instance;
     }
 
-    public function setData($key, $value) {
+    public function setData(string $key, mixed $value): void {
         $this->data[$key] = $value;
     }
 
-    public function getData($key = null) {
+    public function getData(?string $key = null): mixed {
         if (!$key) {
             return $this->data;
         }
@@ -37,30 +37,30 @@ class AppData {
         return $this->data[$key];
     }
 
-    public function getMessages() {
+    public function getMessages(): ?array {
         if (!isset($this->MESSAGES) || !is_array($this->MESSAGES)) {
             return null;
         }
         return $this->MESSAGES;
     }
 
-    public function loadMessages() {
+    public function loadMessages(): ?bool {
         if (isset($this->MESSAGES) && is_array($this->MESSAGES) && count($this->MESSAGES)) {
             return false;
         }
 
-        if (!is_array(@$_SESSION['messages'])) {
-            return (null);
+        if (!isset($_SESSION['messages']) || !is_array($_SESSION['messages'])) {
+            return null;
         }
 
         $this->MESSAGES = $_SESSION['messages'];
 
         $this->loadFilters();
 
-        return (true);
+        return true;
     }
 
-    public function hibernateMessages() {
+    public function hibernateMessages(): ?bool {
         if (!isset($this->MESSAGES) || !is_array($this->MESSAGES)) {
             return null;
         }
@@ -71,10 +71,10 @@ class AppData {
 
         session_write_close();
 
-        return (true);
+        return true;
     }
 
-    public function clearMessages($force_clear_messages = false) {
+    public function clearMessages(bool $force_clear_messages = false): ?array {
         $output = [];
 
         if (!isset($this->MESSAGES) || !is_array($this->MESSAGES)) {
@@ -89,13 +89,13 @@ class AppData {
             $this->MESSAGES = [];
         }
 
-        return ($output);
+        return $output;
     }
 
 
-    public function initiateFilters($page = null) {
+    public function initiateFilters(?string $page = null): bool|array {
         if (!$page) {
-            return (true);
+            return true;
         }
 
         if (isset($this->FILTERS[$page]) && is_array($this->FILTERS[$page])) {
@@ -107,16 +107,16 @@ class AppData {
                 }
             }
         }
-        return ($this->FILTERS[$page]);
+        return ($this->FILTERS[$page] ?? []);
     }
 
-    public function registerFilters($page = null, $filters = null) {
+    public function registerFilters(?string $page = null, ?array $filters = null): bool {
         if (!$page || !$filters) {
-            return (true);
+            return true;
         }
 
         if (!is_array($filters) || !count($filters)) {
-            return (false);
+            return false;
         }
 
         $this->FILTERS_REGISTERED = $filters;
@@ -127,22 +127,22 @@ class AppData {
             $this->FILTERS[$page][$filter] = null;
         }
 
-        return (true);
+        return true;
     }
 
-    public function clearFilters($page = null) {
+    public function clearFilters(?string $page = null): bool {
         if (!$page) {
-            return (true);
+            return true;
         }
 
         unset($this->FILTERS[$page]);
 
-        return (true);
+        return true;
     }
 
-    public function getFilters($page = null) {
+    public function getFilters(?string $page = null): ?array {
         if (!$page) {
-            return (null);
+            return null;
         }
 
         if (!isset($this->FILTERS[$page]) || !is_array($this->FILTERS[$page])) {
@@ -151,21 +151,21 @@ class AppData {
         return $this->FILTERS[$page];
     }
 
-    public function loadFilters() {
+    public function loadFilters(): bool|null {
         if (isset($this->FILTERS) && is_array($this->FILTERS) && count($this->FILTERS)) {
             return false;
         }
 
-        if (!is_array(@$_SESSION['FILTERS'])) {
-            return (null);
+        if (!isset($_SESSION['FILTERS']) || !is_array($_SESSION['FILTERS'])) {
+            return null;
         }
 
         $this->FILTERS = $_SESSION['FILTERS'];
 
-        return (true);
+        return true;
     }
 
-    public function hibernateFilters() {
+    public function hibernateFilters(): ?bool {
         if (!isset($this->FILTERS) || !is_array($this->FILTERS)) {
             return null;
         }
@@ -173,6 +173,6 @@ class AppData {
         $_SESSION['FILTERS'] = $this->FILTERS;
         // session_write_close();
 
-        return (true);
+        return true;
     }
 }

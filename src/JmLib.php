@@ -212,7 +212,7 @@ class JmLib {
      * @param int $max_links_to_show Maximum number of pagination links to display. Default is 7.
      * @return array|false Returns an array containing the pagination structure or false if pagination is not needed.
      */
-    public static function pagination($on_page = 20, $total = 0, $current_page = 1, $max_links_to_show = 7) {
+    public static function pagination(int $on_page = 20, int $total = 0, int $current_page = 1, int $max_links_to_show = 7): array|false {
         if ($total <= $on_page) {
             return false;
         }
@@ -244,11 +244,11 @@ class JmLib {
             $pages[] = 1; // Always show first page
 
             $num_adjacent = $max_links_to_show - 2; // slots left after first and last
-            $start = max(2, $current_page - floor($num_adjacent / 2));
+            $start = (int)max(2, $current_page - floor($num_adjacent / 2));
             $end = min($total_pages - 1, $start + $num_adjacent - 1);
 
             // Adjust start if we are at the end
-            $start = max(2, $end - $num_adjacent + 1);
+            $start = (int)max(2, $end - $num_adjacent + 1);
 
             if ($start > 2) {
                 $pages[] = null; // '...'
@@ -280,7 +280,7 @@ class JmLib {
      * @param string|null $return_only If specified, returns only 'from' or 'till' value.
      * @return array|int|null An array with 'from' and 'till' timestamps, or a single timestamp if $return_only is set.
      */
-    public static function getInterval(string $textname, ?int $now = null, ?string $return_only = null) {
+    public static function getInterval(string $textname, ?int $now = null, ?string $return_only = null): array|int|null {
         if (!$now) {
             $now = mktime(12, 0, 0);
         }

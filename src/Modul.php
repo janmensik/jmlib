@@ -3,29 +3,31 @@
 namespace Janmensik\Jmlib;
 
 class Modul {
-    /** @var array */
-    public $cache; # cache soubor
+    public array $cache = []; # cache soubor
 
     /**
      * @var Database The database connection object.
      */
-    public $DB;
-    public $cache_total; # cache s pocet celkovych radek odpovidajicich poslednimu get
-    public $cache_sql; # cache sql query posledniho get
+    public Database $DB;
+    public ?int $cache_total = null; # cache s pocet celkovych radek odpovidajicich poslednimu get
+    public ?string $cache_sql = null; # cache sql query posledniho get
 
-    protected $sql_base; # zaklad SQL dotazu
-    protected $sql_update; # zaklad SQL dotazu - UPDATE
-    protected $sql_insert; # zaklad SQL dotazu - INSERT
-    protected $sql_table;
-    protected $id_format = 'id';
-    protected $sql_group_total;
-    protected $order = -6;
-    protected $limit = 20;
-    protected $sync = array();
-    protected $many_to_many = array(); # M:N relationships definitions
-    protected $fulltext_columns; # zakladni sloupce pro hledani
+    protected ?string $sql_base = null; # zaklad SQL dotazu
+    protected ?string $sql_update = null; # zaklad SQL dotazu - UPDATE
+    protected ?string $sql_insert = null; # zaklad SQL dotazu - INSERT
+    protected ?string $sql_table = null;
+    protected string $id_format = 'id';
+    protected ?string $sql_group_total = null;
+    protected int|string $order = -6;
+    protected int $limit = 20;
+    protected array $sync = [];
+    protected array $many_to_many = []; # M:N relationships definitions
+    protected ?array $fulltext_columns = null; # zakladni sloupce pro hledani
 
-    public $text = array();
+    public array $data = [];
+    protected array $elements = [];
+
+    public array $text = [];
 
     # ...................................................................
     /**
@@ -34,12 +36,79 @@ class Modul {
      */
     public function __construct(Database &$database) {
         $this->DB = &$database; # globalni objekt pro praci s databazi
-        $this->cache = array();
+        $this->cache = [];
+    }
 
-        if (!is_object($this->DB)) {
-            return (false);
+    # ...................................................................
+    /**
+     * Fill internal data array from database by ID
+     * @param int|null $id
+     * @return bool
+     */
+    public function fillData(?int $id = null): bool {
+        if (!$id) {
+            return false;
         }
-        return (true);
+
+        $item = $this->getId($id);
+
+        if (!$item) {
+            return false;
+        }
+
+        foreach ($this->elements as $el) {
+            if (isset($item[$el])) {
+                $this->data[$el] = $item[$el];
+            }
+        }
+        return true;
+    }
+
+    # ...................................................................
+    /**
+     * Map POST data to internal data array
+     * @param array $post $_POST data
+     * @param array|null $customMap Optional custom mapping [postKey => dbKey]
+     */
+    public function mapFromPost(array $post, ?array $customMap = []): void {
+        $map = !empty($customMap) ? $customMap : array_combine($this->elements, $this->elements);
+
+        foreach ($map as $postKey => $dbKey) {
+            if (isset($post[$postKey])) {
+                $this->data[$dbKey] = $this->sanitize($post[$postKey]);
+            }
+        }
+    }
+
+    # ...................................................................
+    /**
+     * Validate internal data array. Override in child classes.
+     * @return array Array of errors [field => message]
+     */
+    public function validate(): array {
+        return [];
+    }
+
+    # ...................................................................
+    /**
+     * Save internal data array to database
+     * @param int|null $id Record ID to update, or null for insert
+     * @return bool|int Returns ID on success, false on failure
+     */
+    public function setter(?int $id = null): bool|int {
+        $set = [];
+        foreach ($this->elements as $el) {
+            if (isset($this->data[$el])) {
+                $value = $this->data[$el];
+                if ($value === null) {
+                    $set[$el] = 'NULL';
+                } else {
+                    $set[$el] = '"' . mysqli_real_escape_string($this->DB->db, (string)$value) . '"';
+                }
+            }
+        }
+
+        return ($this->set($set, $id));
     }
 
     # ...................................................................
@@ -66,6 +135,7 @@ class Modul {
         }
 
         $data = null;
+        $last_from = null;
 
         # zaklad sql dotazu
         $sql = $this->sql_base;
@@ -116,16 +186,17 @@ class Modul {
         if (!$order) {
             $order = $this->order;
         }
-        foreach (explode(',', $order) as $part_order) {
+        $orders = [];
+        foreach (explode(',', (string)$order) as $part_order) {
             if (is_numeric($part_order)) {
-                if ($part_order < 0) {
-                    $orders[] = (-1 * $part_order) . ' DESC';
+                if ((int)$part_order < 0) {
+                    $orders[] = (-1 * (int)$part_order) . ' DESC';
                 } else {
                     $orders[] = $part_order;
                 }
             }
         }
-        if (isset($orders) && is_array($orders)) {
+        if (!empty($orders)) {
             $sql .= ' ORDER BY ' . implode(', ', $orders);
         }
 
@@ -272,6 +343,8 @@ class Modul {
     # stejne jako get (), ale vrati 1-n (parametr $count) nahodnych zaznamu
     public function getRandom($where = null, $order = null, $limit = null, $limit_from = null, $count = 1) {
         $data = $this->get($where, $order, $limit, $limit_from);
+
+        $output = [];
 
         if (!is_array($data)) {
             return (false);
@@ -435,6 +508,7 @@ class Modul {
         // ------------------------------------
 
         $insert = false;
+        $sql_temp = [];
 
         # priprava pro UDATE
         if ($ids && !$special) {
@@ -448,7 +522,7 @@ class Modul {
             $sql = $this->sql_insert . ' (' . implode(', ', array_keys($set)) . ') VALUES (' . implode(', ', $set) . ') ON DUPLICATE KEY UPDATE ';
             $keys = array_keys($set);
             unset($sql_temp);
-            $sql_temp = array();
+            $sql_temp = [];
             foreach ($keys as $key) {
                 $sql_temp[] .= $key . '=VALUES(' . $key . ')';
             }
@@ -624,11 +698,15 @@ class Modul {
     }
 
     # ...................................................................
-    public function findId($where, $return_only_first = true) {
+    public function findId(array|string|null $where, $return_only_first = true) {
         if (!$where) {
             return (null);
         }
+
+        $output = [];
+
         $data = $this->get($where);
+
         if ($data && $return_only_first) {
             $data = reset($data);
             return ($data['id']);
@@ -643,7 +721,7 @@ class Modul {
     }
 
     # ...................................................................
-    public function findIds($where, $return_only_first = true) {
+    public function findIds(array|string|null $where, $return_only_first = true) {
         return ($this->findId($where, false));
     }
 
@@ -671,6 +749,10 @@ class Modul {
         if (!$input || (!$columns && !is_array($this->fulltext_columns))) {
             return (null);
         }
+
+        $sub = [];
+        $output = null;
+        $query = [];
 
         # prevedu si seznam sloupcu na pole, pripadne nactu default
         if ($columns && !is_array($columns)) {

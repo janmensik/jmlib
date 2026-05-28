@@ -14,53 +14,61 @@ function mysqli_real_escape_string($link, $string) {
 
 // Mock Database class
 class MockDatabase extends Database {
-    public $queries = [];
-    public $rows = []; // Array of arrays to return in getRow
-    public $affected_rows = 0;
-    public $insert_id = 0;
-    public $rows_count = 0;
+    public array $queries = [];
+    public array $rows = []; // Array of arrays to return in getRow
+    public int $affected_rows = 0;
+    public int|string $insert_id = 0;
+    public int $rows_count = 0;
 
     public function __construct() {
         // Skip parent constructor to avoid connection logic
-        $this->db = new \stdClass();
+        $this->db = null;
         $this->messages = [];
     }
 
-    public function query($query, $query_name = '') {
+    private function connect(): \mysqli|false {
+        return false;
+    }
+
+    public function query(string $query, string $query_name = ''): \mysqli_result|bool {
         $this->queries[] = $query;
         return true;
     }
 
-    public function getRow($result = null) {
+    public function getRow(mixed $result = null): array|false|null {
         if (!empty($this->rows)) {
             return array_shift($this->rows);
         }
         return false;
     }
 
-    public function getRowsCount() {
+    public function freeResult(mixed $result = null): bool {
+        return true;
+    }
+
+    public function getRowsCount(): int|false {
         return $this->rows_count;
     }
 
-    public function getNumAffected() {
+    public function getNumAffected(): int {
         return $this->affected_rows;
     }
 
-    public function getId() {
+    public function getId(): int|string|false {
         return $this->insert_id;
     }
 }
 
 // Helper class to expose protected properties of Modul
 class TestModul extends Modul {
-    public function setSqlBase($sql) { $this->sql_base = $sql; }
-    public function setSqlTable($table) { $this->sql_table = $table; }
-    public function setSqlInsert($sql) { $this->sql_insert = $sql; }
-    public function setSqlUpdate($sql) { $this->sql_update = $sql; }
-    public function setIdFormat($id) { $this->id_format = $id; }
-    public function setFulltextColumns($cols) { $this->fulltext_columns = $cols; }
-    public function setOrder($order) { $this->order = $order; }
-    public function setSqlGroupTotal($sql) { $this->sql_group_total = $sql; }
+    public function setSqlBase(?string $sql): void { $this->sql_base = $sql; }
+    public function setSqlTable(?string $table): void { $this->sql_table = $table; }
+    public function setSqlInsert(?string $sql): void { $this->sql_insert = $sql; }
+    public function setSqlUpdate(?string $sql): void { $this->sql_update = $sql; }
+    public function setIdFormat(string $id): void { $this->id_format = $id; }
+    public function setFulltextColumns(?array $cols): void { $this->fulltext_columns = $cols; }
+    public function setOrder(int|string $order): void { $this->order = $order; }
+    public function setSqlGroupTotal(?string $sql): void { $this->sql_group_total = $sql; }
 }
 
 // --- Tests ---

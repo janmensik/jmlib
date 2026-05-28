@@ -6,23 +6,23 @@ use mysqli;
 use mysqli_result;
 
 class Database {
-    public $user;
-    public $password;
-    public $database;
-    public $server;
-    public $result;
-    public $db;
-    public $messages = array(); # debug informace
+    public ?string $user = null;
+    public ?string $password = null;
+    public ?string $database = null;
+    public ?string $server = null;
+    public $result = null;
+    public $db = null;
+    public array $messages = []; # debug informace
 
     # ...................................................................
     /**
      * Database constructor.
-     * @param string $server The database server hostname or IP address.
-     * @param string $database The name of the database.
-     * @param string $user The username for the database connection.
-     * @param string $password The password for the database connection.
+     * @param string|null $server The database server hostname or IP address.
+     * @param string|null $database The name of the database.
+     * @param string|null $user The username for the database connection.
+     * @param string|null $password The password for the database connection.
      */
-    public function __construct($server, $database, $user, $password) {
+    public function __construct(?string $server, ?string $database, ?string $user, ?string $password) {
         # kontrola predanych hodnot
         if (!$server || !$database || !$user) {
             return;
@@ -36,8 +36,6 @@ class Database {
         # iniciace promennych
         $this->messages['total_time'] = 0;
         $this->messages['total_queries'] = 0;
-
-        return;
     }
 
     # ...................................................................
@@ -45,20 +43,20 @@ class Database {
      * Connects to the database.
      * @return mysqli|false The mysqli connection object on success, false on failure.
      */
-    private function connect() {
+    private function connect(): mysqli|false {
         # pripojeni MySQL databaze
-        $this->db = new mysqli($this->server, $this->user, $this->password, $this->database);
+        $this->db = new mysqli((string)$this->server, (string)$this->user, (string)$this->password, (string)$this->database);
 
-        if (!$this->db) {
-            $this->messages['system'] = 'DB not connected!';
-            return (false);
+        if ($this->db->connect_error) {
+            $this->messages['system'] = 'DB not connected! ' . $this->db->connect_error;
+            return false;
         }
         $this->messages['system'] = 'DB connected.';
 
         $this->messages['total_time'] = 0;
         $this->messages['total_queries'] = 0;
 
-        return ($this->db);
+        return $this->db;
     }
 
     # ...................................................................
@@ -66,9 +64,9 @@ class Database {
      * Executes a query against the database.
      * @param string $query The SQL query to execute.
      * @param string $query_name An optional name for the query for debugging purposes.
-     * @return mysqli_result|bool For successful SELECT, SHOW, DESCRIBE or EXPLAIN queries, mysqli_query will return a mysqli_result object. For other successful queries mysqli_query will return true. Returns false on failure.
+     * @return mixed For successful SELECT, SHOW, DESCRIBE or EXPLAIN queries, mysqli_query will return a mysqli_result object. For other successful queries mysqli_query will return true. Returns false on failure.
      */
-    public function query($query, $query_name = '') {
+    public function query(string $query, string $query_name = ''): mixed {
         unset($this->result);
 
         # pokud neni pripojena databaze, pripoj
@@ -103,7 +101,7 @@ class Database {
                 $this->messages['queries'][] = array('time' => (string) $elapsed, 'query' => $query);
             }
         }
-        return ($this->result);
+        return ($this->result ?? false);
     }
 
     # ...................................................................
@@ -111,7 +109,7 @@ class Database {
      * Returns the number of rows in the result set or the number of affected rows.
      * @return int|false The number of rows, or false on error.
      */
-    public function numRows() {
+    public function numRows(): int|false {
         if (!$this->db) {
             return (false);
         }
@@ -127,18 +125,20 @@ class Database {
     # ...................................................................
     /**
      * Fetches one row from the result set as an associative array.
-     * @param mysqli_result|null $result Optional result to fetch from. If null, the last query result is used.
+     * @param mixed $result Optional result to fetch from. If null, the last query result is used.
      * @return array|false|null An associative array representing the fetched row, null if there are no more rows, or false on error.
      */
-    public function getRow($result = null) {
+    public function getRow(mixed $result = null): array|false|null {
         if (!$this->db) {
             return (false);
         }
 
         if ($result) {
             $radka = mysqli_fetch_assoc($result);
-        } else {
+        } elseif ($this->result) {
             $radka = mysqli_fetch_assoc($this->result);
+        } else {
+            return false;
         }
 
         if (is_array($radka)) {
@@ -151,11 +151,11 @@ class Database {
     # ...................................................................
     /**
      * Fetches all rows from the result set as an array of associative arrays.
-     * @param mysqli_result|null $result Optional result to fetch from. If null, the last query result is used.
+     * @param mixed $result Optional result to fetch from. If null, the last query result is used.
      * @param string|null $index_by The column name to use as the index for the output array.
      * @return array|null An array of all result rows, or null if no rows.
      */
-    public function getAllRows($result = null, $index_by = null) {
+    public function getAllRows(mixed $result = null, ?string $index_by = null): ?array {
         if (!$this->db) {
             return (false);
         }
@@ -175,23 +175,21 @@ class Database {
     # ...................................................................
     /**
      * Returns the first column of the first row from the result set.
-     * @param mysqli_result|null $result Optional result to fetch from. If null, the last query result is used.
+     * @param mixed $result Optional result to fetch from. If null, the last query result is used.
      * @return mixed|false The value of the first column, or false on error.
      */
-    public function getResult($result = null) {
+    public function getResult(mixed $result = null): mixed {
         if (!$this->db) {
             return (false);
         }
 
-        $row = mysqli_fetch_array($result ? $result : $this->result); // fetch fata
-        return ($row[0]);
+        $res = $result ? $result : $this->result;
+        if (!$res) {
+            return false;
+        }
 
-        /*
-        if ($result)
-            return (mysql_result ($result, 0, 0));
-        else
-            return (mysql_result ($this->result, 0, 0));
-        */
+        $row = mysqli_fetch_array($res); // fetch data
+        return ($row[0] ?? false);
     }
 
     # ...................................................................
@@ -199,11 +197,11 @@ class Database {
      * Returns the total number of rows for a query that used SQL_CALC_FOUND_ROWS, ignoring the LIMIT clause.
      * @return int|false The total number of rows, or false on error.
      */
-    public function getRowsCount() {
+    public function getRowsCount(): int|false {
         if (!$this->db) {
             return (false);
         }
-        return ($this->getResult($this->query('SELECT FOUND_ROWS();', 'FOUND ROWS')));
+        return (int)($this->getResult($this->query('SELECT FOUND_ROWS();', 'FOUND ROWS')));
     }
 
     # ...................................................................
@@ -211,9 +209,9 @@ class Database {
      * Returns the number of rows affected by the last INSERT, UPDATE, REPLACE or DELETE query.
      * @return int The number of affected rows.
      */
-    public function getNumAffected() {
+    public function getNumAffected(): int {
         if (!$this->db) {
-            return (false);
+            return 0;
         }
         return (mysqli_affected_rows($this->db));
     }
@@ -223,7 +221,7 @@ class Database {
      * Returns the ID generated by the last INSERT query.
      * @return int|string|false The ID generated for an AUTO_INCREMENT column by the previous query on success, 0 if the previous query does not generate an AUTO_INCREMENT value, or false if no MySQL connection was established.
      */
-    public function getId() {
+    public function getId(): int|string|false {
         if (!$this->db) {
             return (false);
         }
@@ -234,18 +232,21 @@ class Database {
     # ...................................................................
     /**
      * Frees the memory associated with a result.
-     * @param mysqli_result|null $result Optional result to free. If null, the last query result is freed.
+     * @param mixed $result Optional result to free. If null, the last query result is freed.
      * @return bool True on success, false on failure.
      */
-    public function freeResult($result = null) {
+    public function freeResult(mixed $result = null): bool {
         if (!$this->db) {
             return (false);
         }
 
         if ($result) {
-            return (mysqli_free_result($result));
-        } else {
-            return (mysqli_free_result($this->result));
+            mysqli_free_result($result);
+            return true;
+        } elseif ($this->result) {
+            mysqli_free_result($this->result);
+            return true;
         }
+        return false;
     }
 }
