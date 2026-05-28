@@ -2,6 +2,7 @@
 
 namespace Janmensik\Jmlib;
 
+# v1.6.1
 class Modul {
     public array $cache = []; # cache soubor
 
