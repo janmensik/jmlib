@@ -426,21 +426,22 @@ class Modul {
         foreach ($dataset as $row) {
             foreach ($values as $key => $function) {
                 if ($function == 'count' && isset($row[$key])) {
-                    @$output[$key]++;
+                    $output[$key] = ($output[$key] ?? 0) + 1;
                 }
                 if ($function == 'sum' && isset($row[$key])) {
-                    @$output[$key] += $row[$key];
+                    $output[$key] = ($output[$key] ?? 0) + $row[$key];
                 }
                 if ($function == 'avg' && isset($row[$key])) {
-                    @$output[$key] += ((int) $row['id'] && $values['id'] == 'sum') ? $row['id'] * $row[$key] : $row[$key];
-                    $counter[$key]++;
+                    $output[$key] ??= 0;
+                    $output[$key] += ((int) ($row['id'] ?? 0) && ($values['id'] ?? null) == 'sum') ? ($row['id'] ?? 0) * $row[$key] : $row[$key];
+                    $counter[$key] = ($counter[$key] ?? 0) + 1;
                 }
             }
         }
 
         foreach ($values as $key => $function) {
-            if ($function == 'avg' && $output[$key]) {
-                $output[$key] = $output[$key] / (((int)$output['id'] && $values['id'] == 'sum') ? $output['id'] : $counter[$key]);
+            if ($function == 'avg' && isset($output[$key])) {
+                $output[$key] = $output[$key] / (((int)($output['id'] ?? 0) && $values['id'] == 'sum') ? $output['id'] : $counter[$key]);
             }
         }
 
@@ -477,7 +478,7 @@ class Modul {
                 if (strpos($key, ']')) {
                     eval('$output' . $key . '+=' . $add . ';');
                 } else {
-                    $output[$key] += $add;
+                    $output[$key] = ($output[$key] ?? 0) + $add;
                 }
             }
         }
@@ -657,7 +658,7 @@ class Modul {
         # prohledam cache, budu nacitat jen nove potrebne
         if (is_array($ids)) {
             foreach ($ids as $key => $id) {
-                if ($this->cache[$id]) {
+                if ($id !== null && isset($this->cache[$id]) && $this->cache[$id]) {
                     $output[] = $this->cache[$id];
                     unset($ids[$key]);
                 }
@@ -672,7 +673,7 @@ class Modul {
         # nenasel jsem (vse), doctu potrebne
         if (is_array($ids) && count($ids)) {
             $data = $this->get($this->sql_table . '.' . $this->id_format . ' IN("' . implode('", "', $ids) . '")');
-            $cache[@$data[$this->id_format]] = $data;
+            // $this->cache is already populated by get() above
             if (is_array($data) && isset($output) && is_array($output)) {
                 $output = array_merge($data, $output);
             } elseif (is_array($data)) {
