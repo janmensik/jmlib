@@ -1,4 +1,5 @@
 <?php
+
 namespace Janmensik\Jmlib;
 
 test('it sets url and parameters correctly via constructor', function () {

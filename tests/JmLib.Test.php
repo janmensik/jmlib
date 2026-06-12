@@ -1,4 +1,5 @@
 <?php
+
 namespace Janmensik\Jmlib;
 
 // --- Mocks for curl functions ---
@@ -226,13 +227,13 @@ test('getInterval returns correct timestamps for predefined text names', functio
 
 # countdays()
 test('countdays returns expected number of days between 2 unix timestamps', function () {
-   expect(JmLib::countdays(strtotime('2023-10-01 10:00:00'), strtotime('2023-10-05 09:00:00')))->toBe(3);
-   expect(JmLib::countdays(strtotime('2023-10-01 23:59:59'), strtotime('2023-10-02 00:00:01')))->toBe(0);
-   expect(JmLib::countdays(strtotime('2023-10-01 20:00:00'), strtotime('2023-10-02 21:00:00')))->toBe(1);
-   expect(JmLib::countdays(strtotime('2023-10-01 00:00:00'), strtotime('2023-10-01 23:59:59')))->toBe(0);
-   expect(JmLib::countdays(strtotime('2023-10-05 00:00:00'), strtotime('2023-10-01 00:00:00')))->toBe(4);
-   expect(JmLib::countdays(0, strtotime('2023-10-01 00:00:00')))->toBe(0);
-   expect(JmLib::countdays(strtotime('2023-10-01 00:00:00'), 0))->toBe(0);
+    expect(JmLib::countdays(strtotime('2023-10-01 10:00:00'), strtotime('2023-10-05 09:00:00')))->toBe(3);
+    expect(JmLib::countdays(strtotime('2023-10-01 23:59:59'), strtotime('2023-10-02 00:00:01')))->toBe(0);
+    expect(JmLib::countdays(strtotime('2023-10-01 20:00:00'), strtotime('2023-10-02 21:00:00')))->toBe(1);
+    expect(JmLib::countdays(strtotime('2023-10-01 00:00:00'), strtotime('2023-10-01 23:59:59')))->toBe(0);
+    expect(JmLib::countdays(strtotime('2023-10-05 00:00:00'), strtotime('2023-10-01 00:00:00')))->toBe(4);
+    expect(JmLib::countdays(0, strtotime('2023-10-01 00:00:00')))->toBe(0);
+    expect(JmLib::countdays(strtotime('2023-10-01 00:00:00'), 0))->toBe(0);
 });
 
 # filemtimeRemote()

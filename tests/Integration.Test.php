@@ -1,4 +1,5 @@
 <?php
+
 namespace Janmensik\Jmlib;
 
 use Janmensik\Jmlib\Modul;

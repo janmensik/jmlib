@@ -256,8 +256,12 @@ class Modul {
             }
 
             $data[] = $radka;
-            if (isset($radka['id']) && $radka['id']) {
-                $this->cache[$radka['id']] = $radka;
+            // Use $this->id_format as the cache key so subclasses that override
+            // id_format (e.g. 'dispatch_id') still populate the cache correctly.
+            // Previously this was hardcoded to 'id', which caused cache misses and
+            // a PHP 8.1+ DEPRECATED notice (null array offset) in getId().
+            if (isset($radka[$this->id_format]) && $radka[$this->id_format]) {
+                $this->cache[$radka[$this->id_format]] = $radka;
             }
         }
 

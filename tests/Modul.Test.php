@@ -61,14 +61,30 @@ class MockDatabase extends Database {
 
 // Helper class to expose protected properties of Modul
 class TestModul extends Modul {
-    public function setSqlBase(?string $sql): void { $this->sql_base = $sql; }
-    public function setSqlTable(?string $table): void { $this->sql_table = $table; }
-    public function setSqlInsert(?string $sql): void { $this->sql_insert = $sql; }
-    public function setSqlUpdate(?string $sql): void { $this->sql_update = $sql; }
-    public function setIdFormat(string $id): void { $this->id_format = $id; }
-    public function setFulltextColumns(?array $cols): void { $this->fulltext_columns = $cols; }
-    public function setOrder(int|string $order): void { $this->order = $order; }
-    public function setSqlGroupTotal(?string $sql): void { $this->sql_group_total = $sql; }
+    public function setSqlBase(?string $sql): void {
+        $this->sql_base = $sql;
+    }
+    public function setSqlTable(?string $table): void {
+        $this->sql_table = $table;
+    }
+    public function setSqlInsert(?string $sql): void {
+        $this->sql_insert = $sql;
+    }
+    public function setSqlUpdate(?string $sql): void {
+        $this->sql_update = $sql;
+    }
+    public function setIdFormat(string $id): void {
+        $this->id_format = $id;
+    }
+    public function setFulltextColumns(?array $cols): void {
+        $this->fulltext_columns = $cols;
+    }
+    public function setOrder(int|string $order): void {
+        $this->order = $order;
+    }
+    public function setSqlGroupTotal(?string $sql): void {
+        $this->sql_group_total = $sql;
+    }
 }
 
 // --- Tests ---
@@ -574,6 +590,37 @@ test('getId returns from cache when available', function () {
     expect(count($db->queries))->toBe($initialQueryCount); // No new query fired
 });
 
+// Regression test: cache must use $this->id_format, not a hardcoded 'id'.
+// When a subclass overrides id_format (e.g. 'dispatch_id') the cache key must
+// match what getId() looks up; otherwise get() returns a null offset and PHP 8.1+
+// emits a DEPRECATED notice.
+test('getId returns from cache when id_format is overridden', function () {
+    $db = new MockDatabase();
+    $db->rows = [
+        ['dispatch_id' => 42, 'name' => 'Dispatch A'],
+    ];
+
+    $modul = new TestModul($db);
+    $modul->setSqlBase('SELECT * FROM dispatches');
+    $modul->setSqlTable('dispatches');
+    $modul->setIdFormat('dispatch_id');
+
+    // Populate cache via get()
+    $modul->get();
+    $initialQueryCount = count($db->queries);
+
+    // Cache should be keyed by the custom id_format value (42), not by 'id'
+    expect($modul->cache)->toHaveKey(42);
+
+    // getId should hit cache — no additional DB query
+    $result = $modul->getId(42);
+
+    expect($result)->toBeArray();
+    expect($result['name'])->toBe('Dispatch A');
+    expect(count($db->queries))->toBe($initialQueryCount); // No new query fired
+});
+
+
 test('getId returns false for null input', function () {
     $db = new MockDatabase();
     $modul = new TestModul($db);
@@ -718,7 +765,9 @@ class TestModulWithElements extends TestModul {
         // Expose elements for testing
         $this->elements = ['name', 'email'];
     }
-    public function setManyToMany(array $config): void { $this->many_to_many = $config; }
+    public function setManyToMany(array $config): void {
+        $this->many_to_many = $config;
+    }
 }
 
 test('fillData returns false for null id', function () {

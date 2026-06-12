@@ -1,6 +1,6 @@
 [
-    "Pest\\Arch\\Plugin",
     "Pest\\Profanity\\Plugin",
+    "Pest\\Arch\\Plugin",
     "Pest\\Mutate\\Plugins\\Mutate",
     "Pest\\Plugins\\Configuration",
     "Pest\\Plugins\\Bail",
@@ -19,5 +19,6 @@
     "Pest\\Plugins\\Verbose",
     "Pest\\Plugins\\Version",
     "Pest\\Plugins\\Shard",
+    "Pest\\Plugins\\Tia",
     "Pest\\Plugins\\Parallel"
 ]
