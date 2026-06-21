@@ -501,52 +501,11 @@ class Modul {
             return false;
         }
 
-        // --- M:N relationships handling ---
-        $mn_data = [];
-        if (!empty($this->many_to_many)) {
-            foreach ($this->many_to_many as $key => $config) {
-                if (isset($set[$key])) {
-                    $mn_data[$key] = $set[$key];
-                    unset($set[$key]);
-                }
-            }
-        }
-        // ------------------------------------
-
+        $mn_data = $this->extractManyToManyData($set);
         $insert = false;
-        $sql_temp = [];
-
-        # priprava pro UDATE
-        if ($ids && !$special) {
-            foreach ($set as $key => $value) {
-                $sql_temp[] = $this->sql_table . '.' . $key . ' = ' . $value;
-            }
-        }
-
-        if ($special == 'IODU') {
-            # special - INSERT ON DUPLICATE UPDATE
-            $sql = $this->sql_insert . ' (' . implode(', ', array_keys($set)) . ') VALUES (' . implode(', ', $set) . ') ON DUPLICATE KEY UPDATE ';
-            $keys = array_keys($set);
-            unset($sql_temp);
-            $sql_temp = [];
-            foreach ($keys as $key) {
-                $sql_temp[] .= $key . '=VALUES(' . $key . ')';
-            }
-            $sql .= implode(', ', $sql_temp);
-        } elseif (is_array($ids) && count($ids)) {
-            # MULTI UPDATE
-            $sql = $this->sql_update . ' SET ' . implode(', ', $sql_temp) . ' WHERE ' . $this->sql_table . '.' . $this->id_format . ' IN ("' . implode('", "', $ids) . '");';
-        } elseif (is_numeric($ids)) {
-            # SINGLE UPDATE
-            $sql = $this->sql_update . ' SET ' . implode(', ', $sql_temp) . ' WHERE ' . $this->sql_table . '.' . $this->id_format . ' = "' . $ids . '";';
-        } else {
-            # INSERT
-            $sql = $this->sql_insert . ' (' . implode(', ', array_keys($set)) . ') VALUES (' . implode(', ', $set) . ');';
-            $insert = true;
-        }
+        $sql = $this->buildSetQuery($set, $ids, $special, $insert);
 
         $this->DB->query($sql);
-
         $affected_rows = $this->DB->getNumAffected();
 
         // A failed query will result in -1.
@@ -568,19 +527,7 @@ class Modul {
             return false;
         }
 
-        # Old sync logic - should only run if rows were actually changed.
-        if ($affected_rows > 0) {
-            foreach (array_keys($set) as $key => $value) {
-                if (in_array($key, $this->sync)) {
-                    if ($insert) {
-                        $this->syncInsert($set, $ids);
-                    } else {
-                        $this->syncUpdate($set, $ids);
-                    }
-                    break;
-                }
-            }
-        }
+        $this->runSyncLogic($affected_rows, $set, $ids, $insert);
 
         // --- M:N relationships handling ---
         if ($ids && !empty($mn_data)) {
@@ -595,6 +542,91 @@ class Modul {
         unset($this->cache_total);
 
         return ($ids);
+    }
+
+    /**
+     * Extracts many-to-many relationship data from the set array.
+     *
+     * @param array &$set Data set to process.
+     * @return array Extracted M:N data.
+     */
+    private function extractManyToManyData(array &$set): array {
+        $mn_data = [];
+        if (!empty($this->many_to_many)) {
+            foreach ($this->many_to_many as $key => $config) {
+                if (isset($set[$key])) {
+                    $mn_data[$key] = $set[$key];
+                    unset($set[$key]);
+                }
+            }
+        }
+        return $mn_data;
+    }
+
+    /**
+     * Builds the appropriate SQL query for the set operation.
+     *
+     * @param array $set Processed data set.
+     * @param array|int|null $ids IDs for update, or null for insert.
+     * @param string|null $special Special operation type (e.g., 'IODU').
+     * @param bool &$insert Indicates if the query is an insert operation.
+     * @return string The generated SQL query.
+     */
+    private function buildSetQuery(array $set, array|int|null $ids, string|null $special, bool &$insert): string {
+        $sql_temp = [];
+
+        # priprava pro UPDATE
+        if ($ids && !$special) {
+            foreach ($set as $key => $value) {
+                $sql_temp[] = $this->sql_table . '.' . $key . ' = ' . $value;
+            }
+        }
+
+        if ($special === 'IODU') {
+            # special - INSERT ON DUPLICATE UPDATE
+            $sql = $this->sql_insert . ' (' . implode(', ', array_keys($set)) . ') VALUES (' . implode(', ', $set) . ') ON DUPLICATE KEY UPDATE ';
+            $sql_temp = [];
+            foreach (array_keys($set) as $key) {
+                $sql_temp[] = $key . '=VALUES(' . $key . ')';
+            }
+            $sql .= implode(', ', $sql_temp);
+        } elseif (is_array($ids) && count($ids)) {
+            # MULTI UPDATE
+            $sql = $this->sql_update . ' SET ' . implode(', ', $sql_temp) . ' WHERE ' . $this->sql_table . '.' . $this->id_format . ' IN ("' . implode('", "', $ids) . '");';
+        } elseif (is_numeric($ids)) {
+            # SINGLE UPDATE
+            $sql = $this->sql_update . ' SET ' . implode(', ', $sql_temp) . ' WHERE ' . $this->sql_table . '.' . $this->id_format . ' = "' . $ids . '";';
+        } else {
+            # INSERT
+            $sql = $this->sql_insert . ' (' . implode(', ', array_keys($set)) . ') VALUES (' . implode(', ', $set) . ');';
+            $insert = true;
+        }
+
+        return $sql;
+    }
+
+    /**
+     * Runs old sync logic based on changes made.
+     *
+     * @param int $affected_rows Count of rows affected by the query.
+     * @param array $set Processed data set.
+     * @param array|int|null $ids Processed IDs.
+     * @param bool $insert Indicates if the operation was an insert.
+     */
+    private function runSyncLogic(int $affected_rows, array $set, array|int|null $ids, bool $insert): void {
+        # Old sync logic - should only run if rows were actually changed.
+        if ($affected_rows > 0) {
+            foreach (array_keys($set) as $key) {
+                if (in_array($key, $this->sync)) {
+                    if ($insert) {
+                        $this->syncInsert($set, $ids);
+                    } else {
+                        $this->syncUpdate($set, $ids);
+                    }
+                    break;
+                }
+            }
+        }
     }
 
     /**
