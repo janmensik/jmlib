@@ -409,11 +409,34 @@ class JmLib {
             return $cache[$remoteFile];
         }
 
+        $scheme = parse_url($remoteFile, PHP_URL_SCHEME);
+        if (!in_array(strtolower((string)$scheme), ['http', 'https'])) {
+            return false;
+        }
+
+        $host = parse_url($remoteFile, PHP_URL_HOST);
+        if ($host !== null && $host !== false) {
+            $ip = gethostbyname((string)$host);
+            // Check if IP is private or loopback
+            if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
+                return false;
+            }
+        } else {
+            return false;
+        }
+
         $ch = curl_init($remoteFile);
         curl_setopt($ch, CURLOPT_NOBODY, true);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_FILETIME, true);
-        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, false); // Disable redirects to prevent SSRF via 3xx to internal IPs
+        curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
+        curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
+        curl_setopt($ch, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4); // Mitigate IPv6 bypasses
+
+        // Prevent TOCTOU DNS Rebinding attacks by forcing cURL to use the validated IP
+        $port = parse_url($remoteFile, PHP_URL_PORT) ?: (strtolower((string)$scheme) === 'https' ? 443 : 80);
+        curl_setopt($ch, CURLOPT_RESOLVE, ["{$host}:{$port}:{$ip}"]);
 
         if (curl_exec($ch) !== false) {
             $info_opt = defined('CURLINFO_FILETIME_T') ? CURLINFO_FILETIME_T : CURLINFO_FILETIME;
