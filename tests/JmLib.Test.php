@@ -260,3 +260,19 @@ test('filemtimeRemote returns false on failure', function () {
 
     expect(JmLib::filemtimeRemote('http://fail.com'))->toBe(false);
 });
+
+test('filemtimeRemote prevents SSRF by rejecting non-http(s) schemes', function () {
+    expect(JmLib::filemtimeRemote('file:///etc/passwd'))->toBe(false);
+    expect(JmLib::filemtimeRemote('ftp://example.com/file.txt'))->toBe(false);
+    expect(JmLib::filemtimeRemote('gopher://example.com'))->toBe(false);
+    expect(JmLib::filemtimeRemote('dict://example.com'))->toBe(false);
+    expect(JmLib::filemtimeRemote('ldap://example.com'))->toBe(false);
+});
+
+test('filemtimeRemote prevents SSRF by rejecting local network requests', function () {
+    expect(JmLib::filemtimeRemote('http://localhost'))->toBe(false);
+    expect(JmLib::filemtimeRemote('http://127.0.0.1'))->toBe(false);
+    expect(JmLib::filemtimeRemote('http://192.168.1.1'))->toBe(false);
+    expect(JmLib::filemtimeRemote('http://10.0.0.1'))->toBe(false);
+    expect(JmLib::filemtimeRemote('http://169.254.169.254'))->toBe(false);
+});
