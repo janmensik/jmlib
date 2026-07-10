@@ -749,11 +749,13 @@ test('sanitize required text returns false when value empty', function () {
     expect($modul->sanitize('', 'text', true))->toBeFalse();
 });
 
-test('sanitize text returns empty string for falsy non-required value', function () {
+test('sanitize text: empty string passes through escape, null returns empty string', function () {
     $db = new MockDatabase();
     $modul = new Modul($db);
 
-    expect($modul->sanitize(''))->toBe('');
+    // '' is a valid (non-null) value — passed through mysqli_real_escape_string
+    expect($modul->sanitize(''))->toBe('escaped_');
+    // null is treated as "no value" — returns '' directly without escaping
     expect($modul->sanitize(null))->toBe('');
 });
 

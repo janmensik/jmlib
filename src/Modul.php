@@ -813,11 +813,13 @@ class Modul {
                 return ((is_array($extra_data) && in_array($value, $extra_data)) ? $value : false);
             case 'text':
             default:
-                if ($required && (!$value || !mysqli_real_escape_string($this->DB->db, (string)$value))) {
+                if ($required && ($value === null || $value === '')) {
                     return false;
-                } else {
-                    return ($value ? mysqli_real_escape_string($this->DB->db, (string)$value) : "");
                 }
+                if ($value === null) {
+                    return "";
+                }
+                return mysqli_real_escape_string($this->DB->db, (string) $value);
         }
     }
 }
