@@ -24,16 +24,37 @@ class JmLib {
     }
 
     /**
-     * Create a simple password string using a cryptographically secure PRNG.
-     * @param int $length Length of the generated password. Default is 5.
-     * @param string|null $salt Optional salt (deprecated, kept for signature compatibility).
-     * @return string Generated password string.
+     * Create a simple display-safe password string using a cryptographically secure PRNG.
+     *
+     * NOTE: The default length (5 hex chars = 20 bits) is far too short for authentication
+     * secrets, session IDs, or password-reset links. Use {@see createToken()} for those.
+     *
+     * @param int $length Length of the generated string. Default is 5.
+     * @param string|null $salt Optional salt (deprecated, kept for signature compatibility only).
+     * @return string Generated hex string of the requested length.
      */
     public static function createPassword(int $length = 5, ?string $salt = 'secret'): string {
         if ($length <= 0) {
             return '';
         }
         return substr(bin2hex(random_bytes((int) ceil($length / 2))), 0, $length);
+    }
+
+    /**
+     * Generate a cryptographically secure random token suitable for authentication secrets,
+     * session identifiers, password-reset links, and API keys.
+     *
+     * The default of 32 bytes produces 256 bits of entropy. The returned string is lowercase
+     * hex and can be stored directly or hashed before storage.
+     *
+     * @param int $bytes Number of random bytes. Default is 32 (256 bits). Values < 1 are clamped to 32.
+     * @return string Lowercase hex string of length $bytes * 2.
+     */
+    public static function createToken(int $bytes = 32): string {
+        if ($bytes < 1) {
+            $bytes = 32;
+        }
+        return bin2hex(random_bytes($bytes));
     }
 
     /**
@@ -112,20 +133,7 @@ class JmLib {
      * @return int|false The position of the last occurrence of needle in haystack, or false if not found.
      */
     public static function strripos(string $haystack, string $needle, int $offset = 0): int|false {
-        if (!is_string($needle)) {
-            $needle = chr(intval($needle));
-        }
-        if ($offset < 0) {
-            $temp_cut = strrev(substr($haystack, 0, abs($offset)));
-        } else {
-            $temp_cut = strrev(substr($haystack, 0, max((strlen($haystack) - $offset), 0)));
-        }
-        $found = self::stripos($temp_cut, strrev($needle));
-        if ($found === false) {
-            return false;
-        }
-        $pos = (strlen($haystack) - ($found + $offset + strlen($needle)));
-        return $pos;
+        return mb_strripos($haystack, $needle, $offset);
     }
 
     /**
@@ -141,18 +149,31 @@ class JmLib {
             return false;
         }
         $dir = dir($dirname);
+        if ($dir === false) {
+            return false; // Directory could not be opened (e.g. permission denied)
+        }
+        $success = true;
         while (false !== $entry = $dir->read()) {
             if ($entry == '.' || $entry == '..') {
                 continue;
             }
-            if (is_dir("$dirname/$entry")) {
-                self::rmdirr("$dirname/$entry");
+            if (is_link("$dirname/$entry")) {
+                if (!unlink("$dirname/$entry")) { // Remove the link itself, never traverse it
+                    $success = false;
+                }
+            } elseif (is_dir("$dirname/$entry")) {
+                if (!self::rmdirr("$dirname/$entry")) {
+                    $success = false;
+                }
             } else {
-                unlink("$dirname/$entry");
+                if (!unlink("$dirname/$entry")) {
+                    $success = false;
+                }
             }
         }
         $dir->close();
-        return rmdir($dirname);
+        // Only call rmdir() if all children were successfully removed
+        return $success && rmdir($dirname);
     }
 
     /**
@@ -167,6 +188,11 @@ class JmLib {
 
     /**
      * Reconstructs the current page's full URL.
+     *
+     * SECURITY NOTE: The host component is read from $_SERVER['HTTP_HOST'], which is supplied
+     * by the client and cannot be trusted. Do NOT use this method to build links for
+     * security-sensitive contexts (e.g. password-reset emails, OAuth redirect URIs). In those
+     * cases, supply a verified base URL from application configuration instead.
      *
      * @param bool|null $for_params If true, the URL will be made ready for a new query parameter to be
      *                         appended by ensuring it ends with either '?' or '&'.
@@ -213,7 +239,7 @@ class JmLib {
      * @return array|false Returns an array containing the pagination structure or false if pagination is not needed.
      */
     public static function pagination(int $on_page = 20, int $total = 0, int $current_page = 1, int $max_links_to_show = 7): array|false {
-        if ($total <= $on_page) {
+        if ($on_page < 1 || $total <= $on_page) {
             return false;
         }
 
@@ -285,6 +311,7 @@ class JmLib {
             $now = mktime(12, 0, 0);
         }
 
+        $output = null;
         switch ($textname) {
             case "today":
                 $output['from'] = mktime(0, 0, 0, date('n', $now), date('j', $now), date('Y', $now));
@@ -320,14 +347,12 @@ class JmLib {
                 break;
             case "lastmonth":
             case 'last_month':
-                if (date('m') == date('m', strtotime('-1 month', $now))) {
-                    $now = strtotime('-1 day', $now);
-                }
-                $from = strtotime('-1 month', $now);
-                $till = strtotime('-1 month', $now);
-
-                $output['from'] = mktime(0, 0, 0, date('n', $from), 1, date('Y', $from));
-                $output['till'] = mktime(23, 59, 59, date('n', $till), date('t', $till), date('Y', $till));
+                // Anchor on the 1st of the current month (derived from $now only, not today)
+                // so that strtotime('-1 month') never rolls over (e.g. Mar 31 -> Feb 1, not Mar 3).
+                $firstOfCurrent = mktime(12, 0, 0, (int)date('n', $now), 1, (int)date('Y', $now));
+                $anchor = strtotime('-1 month', $firstOfCurrent);
+                $output['from'] = mktime(0, 0, 0, (int)date('n', $anchor), 1, (int)date('Y', $anchor));
+                $output['till'] = mktime(23, 59, 59, (int)date('n', $anchor), (int)date('t', $anchor), (int)date('Y', $anchor));
                 break;
             case "tomorrow":
                 $zitra = strtotime('+1 day', $now);
@@ -336,10 +361,11 @@ class JmLib {
                 break;
             case "nextmonth":
             case 'next_month':
-                $from = strtotime('+1 month', $now);
-                $till = strtotime('+1 month', $now);
-                $output['from'] = mktime(0, 0, 0, date('n', $from), 1, date('Y', $from));
-                $output['till'] = mktime(23, 59, 59, date('n', $till), date('t', $till), date('Y', $till));
+                // Same anchoring: start from 1st of current month to avoid day-of-month rollover.
+                $firstOfCurrent = mktime(12, 0, 0, (int)date('n', $now), 1, (int)date('Y', $now));
+                $anchor = strtotime('+1 month', $firstOfCurrent);
+                $output['from'] = mktime(0, 0, 0, (int)date('n', $anchor), 1, (int)date('Y', $anchor));
+                $output['till'] = mktime(23, 59, 59, (int)date('n', $anchor), (int)date('t', $anchor), (int)date('Y', $anchor));
                 break;
             case "next7":
             case "next7days":
@@ -372,9 +398,16 @@ class JmLib {
                 break;
             case "all":
             default:
+                break;
         }
 
-        return ($return_only && $output[$return_only] ? $output[$return_only] : $output);
+        if ($output === null) {
+            return null;
+        }
+        if ($return_only !== null && array_key_exists($return_only, $output)) {
+            return $output[$return_only];
+        }
+        return $output;
     }
 
     /**
@@ -433,6 +466,8 @@ class JmLib {
         curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
         curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
         curl_setopt($ch, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4); // Mitigate IPv6 bypasses
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);  // TCP connect timeout (seconds)
+        curl_setopt($ch, CURLOPT_TIMEOUT, 10);         // Total request timeout (seconds)
 
         // Prevent TOCTOU DNS Rebinding attacks by forcing cURL to use the validated IP
         $port = parse_url($remoteFile, PHP_URL_PORT) ?: (strtolower((string)$scheme) === 'https' ? 443 : 80);
@@ -447,5 +482,248 @@ class JmLib {
             }
         }
         return false;
+    }
+
+    /**
+     * Builds a month calendar structure organized by weeks (1=Monday .. 7=Sunday).
+     * @param int|null $month Month number (1-12). Defaults to the current month.
+     * @param int|null $year Year (1970-2038). Defaults to the current year.
+     * @param bool $fill If true, days outside the month are filled with adjacent timestamps instead of false.
+     * @param string $returnFormat 'ts-noon' (default) returns timestamps at noon, 'day' returns day-of-month numbers.
+     * @return array<int, array<int, int|false|string>> Calendar grid indexed by [week][weekday].
+     */
+    public static function createCalendar(?int $month = null, ?int $year = null, bool $fill = false, string $returnFormat = 'ts-noon'): array {
+        $month = ($month !== null && $month >= 1 && $month <= 12) ? $month : (int) date('n');
+        $year = ($year !== null && $year >= 1970 && $year <= 2038) ? $year : (int) date('Y');
+
+        $startDate = mktime(12, 0, 0, $month, 1, $year);
+        $endDate = mktime(12, 0, 0, $month, (int) date('t', $startDate), $year);
+
+        $output = [];
+        $week = 0;
+        $dayOfWeek = 1; // 1-7 = Mon-Sun
+        $startDay = (int) date('w', $startDate);
+        if ($startDay === 0) {
+            $startDay = 7;
+        }
+
+        for ($i = 1; $i < $startDay; $i++, $dayOfWeek++) {
+            $output[$week][$i] = $fill ? strtotime('-' . ($startDay - $i) . ' days', $startDate) : false;
+        }
+
+        for ($day = $startDate; $day <= $endDate; $day = strtotime('+1 day', $day)) {
+            if ($dayOfWeek === 8) {
+                $week++;
+                $dayOfWeek = 1;
+            }
+            $output[$week][$dayOfWeek] = $day;
+            $dayOfWeek++;
+        }
+
+        if ($dayOfWeek <= 7) {
+            // Capture start so we can compute the correct offset from $endDate:
+            // slot $i must be ($i - $trailStart + 1) days after the last day of the month.
+            $trailStart = $dayOfWeek;
+            for ($i = $dayOfWeek; $i < 8; $i++) {
+                $output[$week][$i] = $fill ? strtotime('+' . ($i - $trailStart + 1) . ' days', $endDate) : false;
+            }
+        }
+
+        if ($returnFormat === 'day') {
+            foreach ($output as $weekKey => $weekValue) {
+                foreach ($weekValue as $dayKey => $dayValue) {
+                    $output[$weekKey][$dayKey] = $dayValue !== false ? date('j', $dayValue) : false;
+                }
+            }
+        }
+
+        return $output;
+    }
+
+    /**
+     * Returns the start or end boundary timestamp of an hour/day/month/year that contains $ts.
+     * @param string $level One of 'hour', 'day', 'month', 'year'.
+     * @param int $ts Reference timestamp. Values <= 0 default to the current time.
+     * @param bool $end If true, returns the end boundary, otherwise the start boundary.
+     * @return int|null Boundary timestamp, or null for an unknown level.
+     */
+    public static function datetimeBoundary(string $level = 'day', int $ts = 1, bool $end = false): ?int {
+        if ($ts === 1 || $ts < 1) {
+            $ts = time();
+        }
+
+        $result = match ($level) {
+            'hour' => mktime((int) date('H', $ts), $end ? 59 : 0, $end ? 59 : 0, (int) date('n', $ts), (int) date('j', $ts), (int) date('Y', $ts)),
+            'day' => mktime($end ? 23 : 0, $end ? 59 : 0, $end ? 59 : 0, (int) date('n', $ts), (int) date('j', $ts), (int) date('Y', $ts)),
+            'month' => mktime($end ? 23 : 0, $end ? 59 : 0, $end ? 59 : 0, (int) date('n', $ts), $end ? (int) date('t', $ts) : 1, (int) date('Y', $ts)),
+            'year' => mktime($end ? 23 : 0, $end ? 59 : 0, $end ? 59 : 0, $end ? 12 : 1, $end ? 31 : 1, (int) date('Y', $ts)),
+            default => null,
+        };
+
+        return $result === false ? null : $result;
+    }
+
+    /**
+     * Implodes a (possibly nested) array, using $separator1 for nested arrays and $separator2 between top-level items.
+     * If $data has no nested arrays, $separator1 is used for the whole (flat) implode.
+     * @param string $separator1 Separator used within nested arrays (or the whole array if it is flat).
+     * @param string $separator2 Separator used between top-level items when nested arrays are present.
+     * @param mixed $data The array to implode. Non-array values are returned unchanged (cast to string).
+     * @return string The imploded string.
+     */
+    public static function doubleImplode(string $separator1, string $separator2, mixed $data): string {
+        if (!is_array($data)) {
+            return (string) $data;
+        }
+
+        $output = [];
+        $hasNestedArray = false;
+
+        foreach ($data as $value) {
+            if (is_array($value)) {
+                $output[] = implode($separator1, $value);
+                $hasNestedArray = true;
+            } else {
+                $output[] = $value;
+            }
+        }
+
+        return implode($hasNestedArray ? $separator2 : $separator1, $output);
+    }
+
+    /**
+     * Returns the contents of a directory (like readdir(), including '.' and '..').
+     * @param string $dirname The directory to read.
+     * @return array|false Array of entry names, or false on failure.
+     */
+    public static function getDir(string $dirname): array|false {
+        $dir = @opendir($dirname);
+        if ($dir === false) {
+            return false;
+        }
+
+        $output = [];
+        while (($file = readdir($dir)) !== false) {
+            $output[] = $file;
+        }
+        closedir($dir);
+
+        return $output;
+    }
+
+
+    /**
+     * Fits y = a + b*log(x) to the given data (x implied as 1..n) using least squares.
+     * @param mixed $data List of numeric y-values. Must be a non-empty array.
+     * @return array|null Fitted y-values (same count as $data), or null on invalid input.
+     */
+    public static function leastSquaresFittingLogarithmic(mixed $data): ?array {
+        if (!is_array($data) || empty($data)) {
+            return null;
+        }
+
+        $x = [];
+        $y = [];
+        $i = 1;
+        foreach ($data as $value) {
+            $x[] = $i;
+            $y[] = $value;
+            $i++;
+        }
+
+        $logX = array_map('log', $x);
+        $n = count($x);
+
+        $sumY = array_sum($y);
+        $sumLogX = array_sum($logX);
+        $sumLogXSquared = array_sum(array_map(fn($v) => $v ** 2, $logX));
+        $sumXy = array_sum(array_map(fn($a, $b) => $a * $b, $logX, $y));
+
+        $denominator = $n * $sumLogXSquared - $sumLogX ** 2;
+        if ($denominator == 0.0) {
+            return null;
+        }
+
+        $b = ($n * $sumXy - $sumY * $sumLogX) / $denominator;
+        $a = ($sumY - $b * $sumLogX) / $n;
+
+        $fitted = [];
+        foreach ($x as $value) {
+            $fitted[] = $a + $b * log($value);
+        }
+
+        return $fitted;
+    }
+
+    /**
+     * Calculates a trailing simple moving average, preserving array keys' order.
+     *
+     * When $sameCount is true, the result has the same number of elements as $data; the
+     * window shrinks near the start so early elements average over fewer values (fixes the
+     * legacy implementation, which read out-of-bounds array indices near the end of the set).
+     * When $sameCount is false, $data is split into non-overlapping chunks of $subsetSize and
+     * each chunk is averaged, yielding roughly count($data)/$subsetSize elements.
+     *
+     * @param mixed $data List of numeric values.
+     * @param int $subsetSize Size of the averaging window/chunk. Default is 5.
+     * @param bool $sameCount Whether to keep the same element count as $data. Default is true.
+     * @return array|null The averaged values, the original $data if $subsetSize is too small/large, or null on invalid input.
+     */
+    public static function movingAverage(mixed $data, int $subsetSize = 5, bool $sameCount = true): mixed {
+        if (!is_array($data)) {
+            return null;
+        }
+
+        if ($subsetSize < 1 || count($data) < $subsetSize) {
+            return $data;
+        }
+
+        $values = array_values($data);
+        $output = [];
+
+        if (!$sameCount) {
+            foreach (array_chunk($values, $subsetSize) as $chunk) {
+                $output[] = array_sum($chunk) / count($chunk);
+            }
+            return $output;
+        }
+
+        $sum = 0.0;
+        $count = count($values);
+        for ($i = 0; $i < $count; $i++) {
+            $sum += $values[$i];
+            if ($i >= $subsetSize) {
+                $sum -= $values[$i - $subsetSize];
+            }
+            $windowLength = min($subsetSize, $i + 1);
+            $output[$i] = $sum / $windowLength;
+        }
+
+        return $output;
+    }
+
+    /**
+     * Extracts a single column/key from each element of an array, preserving the original keys.
+     * @param mixed $data Array of arrays/objects to pluck the value from.
+     * @param mixed $key The array key or object property name to extract.
+     * @return array|null Array (same keys as $data) of extracted values (null where missing), or null on invalid input.
+     */
+    public static function oneFromArray(mixed $data, mixed $key): ?array {
+        if (!is_array($data) || $key === null || $key === '') {
+            return null;
+        }
+
+        $output = [];
+        foreach ($data as $k => $value) {
+            if (is_array($value) && array_key_exists($key, $value)) {
+                $output[$k] = $value[$key];
+            } elseif (is_object($value) && isset($value->$key)) {
+                $output[$k] = $value->$key;
+            } else {
+                $output[$k] = null;
+            }
+        }
+
+        return $output;
     }
 }
