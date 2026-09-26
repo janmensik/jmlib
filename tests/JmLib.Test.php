@@ -124,6 +124,9 @@ test('pagination handles edge cases', function () {
     // Not enough items for pagination
     expect(JmLib::pagination(10, 5))->toBe(false);
 
+    // Zero on_page must not divide by zero
+    expect(JmLib::pagination(0, 10))->toBe(false);
+
     // All pages fit within max_links_to_show
     $out = JmLib::pagination(10, 50, 1, 7);
     expect($out['pages'])->toBe([1, 2, 3, 4, 5]);
@@ -225,6 +228,21 @@ test('getInterval returns correct timestamps for predefined text names', functio
     expect($thisYear['till'])->toBe(strtotime('2023-10-31 23:59:59'));
 });
 
+test('getInterval returns null for unknown names and handles $return_only safely', function () {
+    $now = strtotime('2023-10-26 15:00:00');
+
+    expect(JmLib::getInterval('unknown_interval', $now))->toBeNull();
+    expect(JmLib::getInterval('all', $now))->toBeNull();
+
+    // Valid name + valid return_only key
+    expect(JmLib::getInterval('today', $now, 'from'))->toBe(strtotime('2023-10-26 00:00:00'));
+
+    // Valid name + unknown return_only key returns the full array
+    $out = JmLib::getInterval('today', $now, 'nonexistent');
+    expect($out)->toBeArray();
+    expect($out['from'])->toBe(strtotime('2023-10-26 00:00:00'));
+});
+
 # countdays()
 test('countdays returns expected number of days between 2 unix timestamps', function () {
     expect(JmLib::countdays(strtotime('2023-10-01 10:00:00'), strtotime('2023-10-05 09:00:00')))->toBe(3);
@@ -291,8 +309,15 @@ test('createCalendar builds a week grid with correct offsets', function () {
 test('createCalendar fills leading/trailing days when requested', function () {
     $calendar = JmLib::createCalendar(11, 2023, true);
 
+    // Leading: Nov 1 is Wed (slot 3), so Mon/Tue = Oct 30/31
     expect($calendar[0][1])->toBe(strtotime('-2 days', mktime(12, 0, 0, 11, 1, 2023)));
     expect($calendar[0][2])->toBe(strtotime('-1 days', mktime(12, 0, 0, 11, 1, 2023)));
+
+    // Trailing: Nov 30 is Thu (slot 4); Fri/Sat/Sun must be Dec 1/2/3
+    $lastWeek = array_key_last($calendar);
+    expect($calendar[$lastWeek][5])->toBe(mktime(12, 0, 0, 12, 1, 2023));
+    expect($calendar[$lastWeek][6])->toBe(mktime(12, 0, 0, 12, 2, 2023));
+    expect($calendar[$lastWeek][7])->toBe(mktime(12, 0, 0, 12, 3, 2023));
 });
 
 test('createCalendar returns day numbers when return format is day', function () {
@@ -352,36 +377,6 @@ test('getDir lists directory entries and returns false for missing dirs', functi
     expect($result)->toBe(false);
 });
 
-# kurzyCnb()
-test('kurzyCnb fetches, parses and caches exchange rates', function () {
-    global $mock_curl_exec_result;
-
-    $cacheFile = sys_get_temp_dir() . '/jmlib_kurzy_cnb_' . uniqid() . '.txt';
-    $body = "22.09.2023 #183\r\nzeme|mena|mnozstvi|kod|kurz\r\nEMU|euro|1|EUR|24,320\r\nUSA|dolar|1|USD|22,650\r\n";
-
-    $mock_curl_exec_result = $body;
-    $rates = JmLib::kurzyCnb($cacheFile);
-
-    expect($rates)->toBeArray();
-    expect($rates['eur']['kurz'])->toBe(24.32);
-    expect($rates['usd']['kurz'])->toBe(22.65);
-    expect(file_exists($cacheFile))->toBe(true);
-
-    // Cache should be used within the cache duration, even if the fetch would fail.
-    $mock_curl_exec_result = false;
-    $cached = JmLib::kurzyCnb($cacheFile);
-    expect($cached['eur']['kurz'])->toBe(24.32);
-
-    unlink($cacheFile);
-});
-
-test('kurzyCnb returns null when there is no cache and the fetch fails', function () {
-    global $mock_curl_exec_result;
-    $mock_curl_exec_result = false;
-
-    $cacheFile = sys_get_temp_dir() . '/jmlib_kurzy_cnb_missing_' . uniqid() . '.txt';
-    expect(JmLib::kurzyCnb($cacheFile))->toBeNull();
-});
 
 # leastSquaresFittingLogarithmic()
 test('leastSquaresFittingLogarithmic reconstructs an exact logarithmic model', function () {
@@ -442,4 +437,11 @@ test('oneFromArray returns null for a missing key on an entry and for invalid in
     expect(JmLib::oneFromArray($data, 'name'))->toBe([null, 'Bob']);
     expect(JmLib::oneFromArray('not-an-array', 'name'))->toBeNull();
     expect(JmLib::oneFromArray($data, ''))->toBeNull();
+});
+
+test('oneFromArray accepts integer key 0 as a valid column key', function () {
+    $data = [['Alice', 'admin'], ['Bob', 'user']];
+
+    expect(JmLib::oneFromArray($data, 0))->toBe(['Alice', 'Bob']);
+    expect(JmLib::oneFromArray($data, null))->toBeNull();
 });

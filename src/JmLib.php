@@ -112,20 +112,7 @@ class JmLib {
      * @return int|false The position of the last occurrence of needle in haystack, or false if not found.
      */
     public static function strripos(string $haystack, string $needle, int $offset = 0): int|false {
-        if (!is_string($needle)) {
-            $needle = chr(intval($needle));
-        }
-        if ($offset < 0) {
-            $temp_cut = strrev(substr($haystack, 0, abs($offset)));
-        } else {
-            $temp_cut = strrev(substr($haystack, 0, max((strlen($haystack) - $offset), 0)));
-        }
-        $found = self::stripos($temp_cut, strrev($needle));
-        if ($found === false) {
-            return false;
-        }
-        $pos = (strlen($haystack) - ($found + $offset + strlen($needle)));
-        return $pos;
+        return mb_strripos($haystack, $needle, $offset);
     }
 
     /**
@@ -145,7 +132,9 @@ class JmLib {
             if ($entry == '.' || $entry == '..') {
                 continue;
             }
-            if (is_dir("$dirname/$entry")) {
+            if (is_link("$dirname/$entry")) {
+                unlink("$dirname/$entry"); // Remove the link itself, never traverse it
+            } elseif (is_dir("$dirname/$entry")) {
                 self::rmdirr("$dirname/$entry");
             } else {
                 unlink("$dirname/$entry");
@@ -213,7 +202,7 @@ class JmLib {
      * @return array|false Returns an array containing the pagination structure or false if pagination is not needed.
      */
     public static function pagination(int $on_page = 20, int $total = 0, int $current_page = 1, int $max_links_to_show = 7): array|false {
-        if ($total <= $on_page) {
+        if ($on_page < 1 || $total <= $on_page) {
             return false;
         }
 
@@ -285,6 +274,7 @@ class JmLib {
             $now = mktime(12, 0, 0);
         }
 
+        $output = null;
         switch ($textname) {
             case "today":
                 $output['from'] = mktime(0, 0, 0, date('n', $now), date('j', $now), date('Y', $now));
@@ -372,9 +362,16 @@ class JmLib {
                 break;
             case "all":
             default:
+                break;
         }
 
-        return ($return_only && $output[$return_only] ? $output[$return_only] : $output);
+        if ($output === null) {
+            return null;
+        }
+        if ($return_only !== null && array_key_exists($return_only, $output)) {
+            return $output[$return_only];
+        }
+        return $output;
     }
 
     /**
@@ -433,6 +430,8 @@ class JmLib {
         curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
         curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
         curl_setopt($ch, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4); // Mitigate IPv6 bypasses
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);  // TCP connect timeout (seconds)
+        curl_setopt($ch, CURLOPT_TIMEOUT, 10);         // Total request timeout (seconds)
 
         // Prevent TOCTOU DNS Rebinding attacks by forcing cURL to use the validated IP
         $port = parse_url($remoteFile, PHP_URL_PORT) ?: (strtolower((string)$scheme) === 'https' ? 443 : 80);
@@ -486,8 +485,11 @@ class JmLib {
         }
 
         if ($dayOfWeek <= 7) {
-            for ($i = $dayOfWeek; $i < 8; $i++, $dayOfWeek++) {
-                $output[$week][$i] = $fill ? strtotime('+' . ($i - 1) . ' days', $endDate) : false;
+            // Capture start so we can compute the correct offset from $endDate:
+            // slot $i must be ($i - $trailStart + 1) days after the last day of the month.
+            $trailStart = $dayOfWeek;
+            for ($i = $dayOfWeek; $i < 8; $i++) {
+                $output[$week][$i] = $fill ? strtotime('+' . ($i - $trailStart + 1) . ' days', $endDate) : false;
             }
         }
 
@@ -573,75 +575,6 @@ class JmLib {
         return $output;
     }
 
-    /**
-     * Fetches (with file caching) the daily exchange rate list published by the Czech National Bank.
-     * @param string $cacheFile Path to the local cache file.
-     * @param int $cacheDuration Cache validity in seconds. Default is 3600 (1 hour).
-     * @return array|null Associative array keyed by lowercase currency code, or null on failure.
-     */
-    public static function kurzyCnb(string $cacheFile = './cache/kurzy_cnb.txt', int $cacheDuration = 3600): ?array {
-        clearstatcache();
-
-        if (is_file($cacheFile) && (time() - filemtime($cacheFile)) < $cacheDuration) {
-            $cached = @file_get_contents($cacheFile);
-            if ($cached !== false) {
-                $data = @unserialize($cached, ['allowed_classes' => false]);
-                if (is_array($data)) {
-                    return $data;
-                }
-            }
-        }
-
-        $data = self::kurzyCnbFetch();
-
-        if (is_array($data)) {
-            @file_put_contents($cacheFile, serialize($data));
-            return $data;
-        }
-
-        if (is_file($cacheFile)) {
-            $cached = @file_get_contents($cacheFile);
-            $data = $cached !== false ? @unserialize($cached, ['allowed_classes' => false]) : null;
-        }
-
-        return is_array($data) ? $data : null;
-    }
-
-    /**
-     * Downloads and parses the CNB daily exchange rate text file.
-     * @return array|null Associative array keyed by lowercase currency code, or null on failure.
-     */
-    private static function kurzyCnbFetch(): ?array {
-        $url = 'https://www.cnb.cz/cs/financni_trhy/devizovy_trh/kurzy_devizoveho_trhu/denni_kurz.txt';
-
-        $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, false);
-        curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-        $content = curl_exec($ch);
-        curl_close($ch);
-
-        if (!is_string($content) || $content === '') {
-            return null;
-        }
-
-        $rates = [];
-        foreach (preg_split('/\r\n|\r|\n/', $content) as $line) {
-            if (preg_match('/^([^|]+)\|([^|]+)\|([0-9]+)\|([A-Za-z]{3})\|([0-9,]+)/u', trim($line), $match)) {
-                $code = strtolower($match[4]);
-                $rates[$code] = [
-                    'zeme' => $match[1],
-                    'mena' => $match[2],
-                    'mnozstvi' => (int) $match[3],
-                    'kod' => $match[4],
-                    'kurz' => (float) str_replace(',', '.', $match[5]),
-                ];
-            }
-        }
-
-        return $rates;
-    }
 
     /**
      * Fits y = a + b*log(x) to the given data (x implied as 1..n) using least squares.
@@ -740,7 +673,7 @@ class JmLib {
      * @return array|null Array (same keys as $data) of extracted values (null where missing), or null on invalid input.
      */
     public static function oneFromArray(mixed $data, mixed $key): ?array {
-        if (!is_array($data) || !$key) {
+        if (!is_array($data) || $key === null || $key === '') {
             return null;
         }
 
