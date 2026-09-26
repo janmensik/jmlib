@@ -448,4 +448,313 @@ class JmLib {
         }
         return false;
     }
+
+    /**
+     * Builds a month calendar structure organized by weeks (1=Monday .. 7=Sunday).
+     * @param int|null $month Month number (1-12). Defaults to the current month.
+     * @param int|null $year Year (1970-2038). Defaults to the current year.
+     * @param bool $fill If true, days outside the month are filled with adjacent timestamps instead of false.
+     * @param string $returnFormat 'ts-noon' (default) returns timestamps at noon, 'day' returns day-of-month numbers.
+     * @return array<int, array<int, int|false|string>> Calendar grid indexed by [week][weekday].
+     */
+    public static function createCalendar(?int $month = null, ?int $year = null, bool $fill = false, string $returnFormat = 'ts-noon'): array {
+        $month = ($month !== null && $month >= 1 && $month <= 12) ? $month : (int) date('n');
+        $year = ($year !== null && $year >= 1970 && $year <= 2038) ? $year : (int) date('Y');
+
+        $startDate = mktime(12, 0, 0, $month, 1, $year);
+        $endDate = mktime(12, 0, 0, $month, (int) date('t', $startDate), $year);
+
+        $output = [];
+        $week = 0;
+        $dayOfWeek = 1; // 1-7 = Mon-Sun
+        $startDay = (int) date('w', $startDate);
+        if ($startDay === 0) {
+            $startDay = 7;
+        }
+
+        for ($i = 1; $i < $startDay; $i++, $dayOfWeek++) {
+            $output[$week][$i] = $fill ? strtotime('-' . ($startDay - $i) . ' days', $startDate) : false;
+        }
+
+        for ($day = $startDate; $day <= $endDate; $day = strtotime('+1 day', $day)) {
+            if ($dayOfWeek === 8) {
+                $week++;
+                $dayOfWeek = 1;
+            }
+            $output[$week][$dayOfWeek] = $day;
+            $dayOfWeek++;
+        }
+
+        if ($dayOfWeek <= 7) {
+            for ($i = $dayOfWeek; $i < 8; $i++, $dayOfWeek++) {
+                $output[$week][$i] = $fill ? strtotime('+' . ($i - 1) . ' days', $endDate) : false;
+            }
+        }
+
+        if ($returnFormat === 'day') {
+            foreach ($output as $weekKey => $weekValue) {
+                foreach ($weekValue as $dayKey => $dayValue) {
+                    $output[$weekKey][$dayKey] = $dayValue !== false ? date('j', $dayValue) : false;
+                }
+            }
+        }
+
+        return $output;
+    }
+
+    /**
+     * Returns the start or end boundary timestamp of an hour/day/month/year that contains $ts.
+     * @param string $level One of 'hour', 'day', 'month', 'year'.
+     * @param int $ts Reference timestamp. Values <= 0 default to the current time.
+     * @param bool $end If true, returns the end boundary, otherwise the start boundary.
+     * @return int|null Boundary timestamp, or null for an unknown level.
+     */
+    public static function datetimeBoundary(string $level = 'day', int $ts = 1, bool $end = false): ?int {
+        if ($ts === 1 || $ts < 1) {
+            $ts = time();
+        }
+
+        $result = match ($level) {
+            'hour' => mktime((int) date('H', $ts), $end ? 59 : 0, $end ? 59 : 0, (int) date('n', $ts), (int) date('j', $ts), (int) date('Y', $ts)),
+            'day' => mktime($end ? 23 : 0, $end ? 59 : 0, $end ? 59 : 0, (int) date('n', $ts), (int) date('j', $ts), (int) date('Y', $ts)),
+            'month' => mktime($end ? 23 : 0, $end ? 59 : 0, $end ? 59 : 0, (int) date('n', $ts), $end ? (int) date('t', $ts) : 1, (int) date('Y', $ts)),
+            'year' => mktime($end ? 23 : 0, $end ? 59 : 0, $end ? 59 : 0, $end ? 12 : 1, $end ? 31 : 1, (int) date('Y', $ts)),
+            default => null,
+        };
+
+        return $result === false ? null : $result;
+    }
+
+    /**
+     * Implodes a (possibly nested) array, using $separator1 for nested arrays and $separator2 between top-level items.
+     * If $data has no nested arrays, $separator1 is used for the whole (flat) implode.
+     * @param string $separator1 Separator used within nested arrays (or the whole array if it is flat).
+     * @param string $separator2 Separator used between top-level items when nested arrays are present.
+     * @param mixed $data The array to implode. Non-array values are returned unchanged (cast to string).
+     * @return string The imploded string.
+     */
+    public static function doubleImplode(string $separator1, string $separator2, mixed $data): string {
+        if (!is_array($data)) {
+            return (string) $data;
+        }
+
+        $output = [];
+        $hasNestedArray = false;
+
+        foreach ($data as $value) {
+            if (is_array($value)) {
+                $output[] = implode($separator1, $value);
+                $hasNestedArray = true;
+            } else {
+                $output[] = $value;
+            }
+        }
+
+        return implode($hasNestedArray ? $separator2 : $separator1, $output);
+    }
+
+    /**
+     * Returns the contents of a directory (like readdir(), including '.' and '..').
+     * @param string $dirname The directory to read.
+     * @return array|false Array of entry names, or false on failure.
+     */
+    public static function getDir(string $dirname): array|false {
+        $dir = @opendir($dirname);
+        if ($dir === false) {
+            return false;
+        }
+
+        $output = [];
+        while (($file = readdir($dir)) !== false) {
+            $output[] = $file;
+        }
+        closedir($dir);
+
+        return $output;
+    }
+
+    /**
+     * Fetches (with file caching) the daily exchange rate list published by the Czech National Bank.
+     * @param string $cacheFile Path to the local cache file.
+     * @param int $cacheDuration Cache validity in seconds. Default is 3600 (1 hour).
+     * @return array|null Associative array keyed by lowercase currency code, or null on failure.
+     */
+    public static function kurzyCnb(string $cacheFile = './cache/kurzy_cnb.txt', int $cacheDuration = 3600): ?array {
+        clearstatcache();
+
+        if (is_file($cacheFile) && (time() - filemtime($cacheFile)) < $cacheDuration) {
+            $cached = @file_get_contents($cacheFile);
+            if ($cached !== false) {
+                $data = @unserialize($cached, ['allowed_classes' => false]);
+                if (is_array($data)) {
+                    return $data;
+                }
+            }
+        }
+
+        $data = self::kurzyCnbFetch();
+
+        if (is_array($data)) {
+            @file_put_contents($cacheFile, serialize($data));
+            return $data;
+        }
+
+        if (is_file($cacheFile)) {
+            $cached = @file_get_contents($cacheFile);
+            $data = $cached !== false ? @unserialize($cached, ['allowed_classes' => false]) : null;
+        }
+
+        return is_array($data) ? $data : null;
+    }
+
+    /**
+     * Downloads and parses the CNB daily exchange rate text file.
+     * @return array|null Associative array keyed by lowercase currency code, or null on failure.
+     */
+    private static function kurzyCnbFetch(): ?array {
+        $url = 'https://www.cnb.cz/cs/financni_trhy/devizovy_trh/kurzy_devizoveho_trhu/denni_kurz.txt';
+
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, false);
+        curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+        $content = curl_exec($ch);
+        curl_close($ch);
+
+        if (!is_string($content) || $content === '') {
+            return null;
+        }
+
+        $rates = [];
+        foreach (preg_split('/\r\n|\r|\n/', $content) as $line) {
+            if (preg_match('/^([^|]+)\|([^|]+)\|([0-9]+)\|([A-Za-z]{3})\|([0-9,]+)/u', trim($line), $match)) {
+                $code = strtolower($match[4]);
+                $rates[$code] = [
+                    'zeme' => $match[1],
+                    'mena' => $match[2],
+                    'mnozstvi' => (int) $match[3],
+                    'kod' => $match[4],
+                    'kurz' => (float) str_replace(',', '.', $match[5]),
+                ];
+            }
+        }
+
+        return $rates;
+    }
+
+    /**
+     * Fits y = a + b*log(x) to the given data (x implied as 1..n) using least squares.
+     * @param mixed $data List of numeric y-values. Must be a non-empty array.
+     * @return array|null Fitted y-values (same count as $data), or null on invalid input.
+     */
+    public static function leastSquaresFittingLogarithmic(mixed $data): ?array {
+        if (!is_array($data) || empty($data)) {
+            return null;
+        }
+
+        $x = [];
+        $y = [];
+        $i = 1;
+        foreach ($data as $value) {
+            $x[] = $i;
+            $y[] = $value;
+            $i++;
+        }
+
+        $logX = array_map('log', $x);
+        $n = count($x);
+
+        $sumY = array_sum($y);
+        $sumLogX = array_sum($logX);
+        $sumLogXSquared = array_sum(array_map(fn($v) => $v ** 2, $logX));
+        $sumXy = array_sum(array_map(fn($a, $b) => $a * $b, $logX, $y));
+
+        $denominator = $n * $sumLogXSquared - $sumLogX ** 2;
+        if ($denominator == 0.0) {
+            return null;
+        }
+
+        $b = ($n * $sumXy - $sumY * $sumLogX) / $denominator;
+        $a = ($sumY - $b * $sumLogX) / $n;
+
+        $fitted = [];
+        foreach ($x as $value) {
+            $fitted[] = $a + $b * log($value);
+        }
+
+        return $fitted;
+    }
+
+    /**
+     * Calculates a trailing simple moving average, preserving array keys' order.
+     *
+     * When $sameCount is true, the result has the same number of elements as $data; the
+     * window shrinks near the start so early elements average over fewer values (fixes the
+     * legacy implementation, which read out-of-bounds array indices near the end of the set).
+     * When $sameCount is false, $data is split into non-overlapping chunks of $subsetSize and
+     * each chunk is averaged, yielding roughly count($data)/$subsetSize elements.
+     *
+     * @param mixed $data List of numeric values.
+     * @param int $subsetSize Size of the averaging window/chunk. Default is 5.
+     * @param bool $sameCount Whether to keep the same element count as $data. Default is true.
+     * @return array|null The averaged values, the original $data if $subsetSize is too small/large, or null on invalid input.
+     */
+    public static function movingAverage(mixed $data, int $subsetSize = 5, bool $sameCount = true): mixed {
+        if (!is_array($data)) {
+            return null;
+        }
+
+        if ($subsetSize < 1 || count($data) < $subsetSize) {
+            return $data;
+        }
+
+        $values = array_values($data);
+        $output = [];
+
+        if (!$sameCount) {
+            foreach (array_chunk($values, $subsetSize) as $chunk) {
+                $output[] = array_sum($chunk) / count($chunk);
+            }
+            return $output;
+        }
+
+        $sum = 0.0;
+        $count = count($values);
+        for ($i = 0; $i < $count; $i++) {
+            $sum += $values[$i];
+            if ($i >= $subsetSize) {
+                $sum -= $values[$i - $subsetSize];
+            }
+            $windowLength = min($subsetSize, $i + 1);
+            $output[$i] = $sum / $windowLength;
+        }
+
+        return $output;
+    }
+
+    /**
+     * Extracts a single column/key from each element of an array, preserving the original keys.
+     * @param mixed $data Array of arrays/objects to pluck the value from.
+     * @param mixed $key The array key or object property name to extract.
+     * @return array|null Array (same keys as $data) of extracted values (null where missing), or null on invalid input.
+     */
+    public static function oneFromArray(mixed $data, mixed $key): ?array {
+        if (!is_array($data) || !$key) {
+            return null;
+        }
+
+        $output = [];
+        foreach ($data as $k => $value) {
+            if (is_array($value) && array_key_exists($key, $value)) {
+                $output[$k] = $value[$key];
+            } elseif (is_object($value) && isset($value->$key)) {
+                $output[$k] = $value->$key;
+            } else {
+                $output[$k] = null;
+            }
+        }
+
+        return $output;
+    }
 }

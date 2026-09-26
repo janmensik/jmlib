@@ -276,3 +276,164 @@ test('filemtimeRemote prevents SSRF by rejecting local network requests', functi
     expect(JmLib::filemtimeRemote('http://10.0.0.1'))->toBe(false);
     expect(JmLib::filemtimeRemote('http://169.254.169.254'))->toBe(false);
 });
+
+# createCalendar()
+test('createCalendar builds a week grid with correct offsets', function () {
+    // November 2023 starts on a Wednesday (weekday 3)
+    $calendar = JmLib::createCalendar(11, 2023);
+
+    expect($calendar[0][1])->toBe(false);
+    expect($calendar[0][2])->toBe(false);
+    expect($calendar[0][3])->toBe(mktime(12, 0, 0, 11, 1, 2023));
+    expect($calendar[1][1])->toBe(mktime(12, 0, 0, 11, 6, 2023));
+});
+
+test('createCalendar fills leading/trailing days when requested', function () {
+    $calendar = JmLib::createCalendar(11, 2023, true);
+
+    expect($calendar[0][1])->toBe(strtotime('-2 days', mktime(12, 0, 0, 11, 1, 2023)));
+    expect($calendar[0][2])->toBe(strtotime('-1 days', mktime(12, 0, 0, 11, 1, 2023)));
+});
+
+test('createCalendar returns day numbers when return format is day', function () {
+    $calendar = JmLib::createCalendar(11, 2023, false, 'day');
+
+    expect($calendar[0][1])->toBe(false);
+    expect($calendar[0][3])->toBe('1');
+});
+
+# datetimeBoundary()
+test('datetimeBoundary returns correct start/end boundaries per level', function () {
+    $ts = strtotime('2023-06-15 14:35:20');
+
+    expect(JmLib::datetimeBoundary('hour', $ts, false))->toBe(mktime(14, 0, 0, 6, 15, 2023));
+    expect(JmLib::datetimeBoundary('hour', $ts, true))->toBe(mktime(14, 59, 59, 6, 15, 2023));
+
+    expect(JmLib::datetimeBoundary('day', $ts, false))->toBe(mktime(0, 0, 0, 6, 15, 2023));
+    expect(JmLib::datetimeBoundary('day', $ts, true))->toBe(mktime(23, 59, 59, 6, 15, 2023));
+
+    expect(JmLib::datetimeBoundary('month', $ts, false))->toBe(mktime(0, 0, 0, 6, 1, 2023));
+    expect(JmLib::datetimeBoundary('month', $ts, true))->toBe(mktime(23, 59, 59, 6, 30, 2023));
+
+    expect(JmLib::datetimeBoundary('year', $ts, false))->toBe(mktime(0, 0, 0, 1, 1, 2023));
+    expect(JmLib::datetimeBoundary('year', $ts, true))->toBe(mktime(23, 59, 59, 12, 31, 2023));
+
+    expect(JmLib::datetimeBoundary('unknown', $ts))->toBeNull();
+});
+
+# doubleImplode()
+test('doubleImplode joins flat and nested arrays with the right separators', function () {
+    expect(JmLib::doubleImplode(',', ';', ['a', 'b', 'c']))->toBe('a,b,c');
+    expect(JmLib::doubleImplode(',', ';', [['a', 'b'], ['c', 'd']]))->toBe('a,b;c,d');
+    expect(JmLib::doubleImplode(',', ';', ['x', ['a', 'b']]))->toBe('x;a,b');
+    expect(JmLib::doubleImplode(',', ';', 'hello'))->toBe('hello');
+});
+
+# getDir()
+test('getDir lists directory entries and returns false for missing dirs', function () {
+    $tmp = sys_get_temp_dir() . '/jmlib_getdir_' . uniqid();
+    mkdir($tmp);
+    file_put_contents($tmp . '/a.txt', 'x');
+    file_put_contents($tmp . '/b.txt', 'y');
+
+    $entries = JmLib::getDir($tmp);
+    expect($entries)->toBeArray();
+    expect(in_array('a.txt', $entries))->toBe(true);
+    expect(in_array('b.txt', $entries))->toBe(true);
+
+    JmLib::rmdirr($tmp);
+
+    expect(JmLib::getDir($tmp . '_missing'))->toBe(false);
+});
+
+# kurzyCnb()
+test('kurzyCnb fetches, parses and caches exchange rates', function () {
+    global $mock_curl_exec_result;
+
+    $cacheFile = sys_get_temp_dir() . '/jmlib_kurzy_cnb_' . uniqid() . '.txt';
+    $body = "22.09.2023 #183\r\nzeme|mena|mnozstvi|kod|kurz\r\nEMU|euro|1|EUR|24,320\r\nUSA|dolar|1|USD|22,650\r\n";
+
+    $mock_curl_exec_result = $body;
+    $rates = JmLib::kurzyCnb($cacheFile);
+
+    expect($rates)->toBeArray();
+    expect($rates['eur']['kurz'])->toBe(24.32);
+    expect($rates['usd']['kurz'])->toBe(22.65);
+    expect(file_exists($cacheFile))->toBe(true);
+
+    // Cache should be used within the cache duration, even if the fetch would fail.
+    $mock_curl_exec_result = false;
+    $cached = JmLib::kurzyCnb($cacheFile);
+    expect($cached['eur']['kurz'])->toBe(24.32);
+
+    unlink($cacheFile);
+});
+
+test('kurzyCnb returns null when there is no cache and the fetch fails', function () {
+    global $mock_curl_exec_result;
+    $mock_curl_exec_result = false;
+
+    $cacheFile = sys_get_temp_dir() . '/jmlib_kurzy_cnb_missing_' . uniqid() . '.txt';
+    expect(JmLib::kurzyCnb($cacheFile))->toBeNull();
+});
+
+# leastSquaresFittingLogarithmic()
+test('leastSquaresFittingLogarithmic reconstructs an exact logarithmic model', function () {
+    $a = 2.0;
+    $b = 3.0;
+    $input = [];
+    for ($i = 1; $i <= 6; $i++) {
+        $input[] = $a + $b * log($i);
+    }
+
+    $fitted = JmLib::leastSquaresFittingLogarithmic($input);
+
+    expect($fitted)->toBeArray();
+    foreach ($input as $key => $value) {
+        expect(round($fitted[$key], 6))->toBe(round($value, 6));
+    }
+});
+
+test('leastSquaresFittingLogarithmic returns null for invalid input', function () {
+    expect(JmLib::leastSquaresFittingLogarithmic('not-an-array'))->toBeNull();
+    expect(JmLib::leastSquaresFittingLogarithmic([]))->toBeNull();
+    expect(JmLib::leastSquaresFittingLogarithmic([5]))->toBeNull();
+});
+
+# movingAverage()
+test('movingAverage computes a trailing average with the same element count', function () {
+    $data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    $result = JmLib::movingAverage($data, 3, true);
+
+    expect($result)->toBe([1, 1.5, 2, 3, 4, 5, 6, 7, 8, 9]);
+});
+
+test('movingAverage chunks data into averaged buckets when sameCount is false', function () {
+    $data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    $result = JmLib::movingAverage($data, 3, false);
+
+    expect($result)->toBe([2.0, 5.0, 8.0, 10.0]);
+});
+
+test('movingAverage returns input unchanged or null for edge cases', function () {
+    expect(JmLib::movingAverage('not-an-array'))->toBeNull();
+    expect(JmLib::movingAverage(['a' => 1, 'b' => 2], 5))->toBe(['a' => 1, 'b' => 2]);
+});
+
+# oneFromArray()
+test('oneFromArray plucks a column while preserving original keys', function () {
+    $data = [
+        'first' => ['id' => 1, 'name' => 'Alice'],
+        'second' => ['id' => 2, 'name' => 'Bob'],
+    ];
+
+    expect(JmLib::oneFromArray($data, 'name'))->toBe(['first' => 'Alice', 'second' => 'Bob']);
+});
+
+test('oneFromArray returns null for a missing key on an entry and for invalid input', function () {
+    $data = [['id' => 1], ['id' => 2, 'name' => 'Bob']];
+
+    expect(JmLib::oneFromArray($data, 'name'))->toBe([null, 'Bob']);
+    expect(JmLib::oneFromArray('not-an-array', 'name'))->toBeNull();
+    expect(JmLib::oneFromArray($data, ''))->toBeNull();
+});
