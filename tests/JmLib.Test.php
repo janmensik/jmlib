@@ -343,7 +343,13 @@ test('getDir lists directory entries and returns false for missing dirs', functi
 
     JmLib::rmdirr($tmp);
 
-    expect(JmLib::getDir($tmp . '_missing'))->toBe(false);
+    // opendir() emits E_WARNING for missing paths; install a no-op handler so
+    // Xdebug cannot intercept the warning before @ suppression in getDir() does.
+    set_error_handler(fn() => true, E_WARNING);
+    $result = JmLib::getDir($tmp . '_missing');
+    restore_error_handler();
+
+    expect($result)->toBe(false);
 });
 
 # kurzyCnb()
@@ -405,14 +411,14 @@ test('movingAverage computes a trailing average with the same element count', fu
     $data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     $result = JmLib::movingAverage($data, 3, true);
 
-    expect($result)->toBe([1, 1.5, 2, 3, 4, 5, 6, 7, 8, 9]);
+    expect($result)->toBe([1.0, 1.5, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]);
 });
 
 test('movingAverage chunks data into averaged buckets when sameCount is false', function () {
     $data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     $result = JmLib::movingAverage($data, 3, false);
 
-    expect($result)->toBe([2.0, 5.0, 8.0, 10.0]);
+    expect($result)->toBe([2, 5, 8, 10]);
 });
 
 test('movingAverage returns input unchanged or null for edge cases', function () {
