@@ -24,16 +24,37 @@ class JmLib {
     }
 
     /**
-     * Create a simple password string using a cryptographically secure PRNG.
-     * @param int $length Length of the generated password. Default is 5.
-     * @param string|null $salt Optional salt (deprecated, kept for signature compatibility).
-     * @return string Generated password string.
+     * Create a simple display-safe password string using a cryptographically secure PRNG.
+     *
+     * NOTE: The default length (5 hex chars = 20 bits) is far too short for authentication
+     * secrets, session IDs, or password-reset links. Use {@see createToken()} for those.
+     *
+     * @param int $length Length of the generated string. Default is 5.
+     * @param string|null $salt Optional salt (deprecated, kept for signature compatibility only).
+     * @return string Generated hex string of the requested length.
      */
     public static function createPassword(int $length = 5, ?string $salt = 'secret'): string {
         if ($length <= 0) {
             return '';
         }
         return substr(bin2hex(random_bytes((int) ceil($length / 2))), 0, $length);
+    }
+
+    /**
+     * Generate a cryptographically secure random token suitable for authentication secrets,
+     * session identifiers, password-reset links, and API keys.
+     *
+     * The default of 32 bytes produces 256 bits of entropy. The returned string is lowercase
+     * hex and can be stored directly or hashed before storage.
+     *
+     * @param int $bytes Number of random bytes. Default is 32 (256 bits). Values < 1 are clamped to 32.
+     * @return string Lowercase hex string of length $bytes * 2.
+     */
+    public static function createToken(int $bytes = 32): string {
+        if ($bytes < 1) {
+            $bytes = 32;
+        }
+        return bin2hex(random_bytes($bytes));
     }
 
     /**
@@ -128,20 +149,31 @@ class JmLib {
             return false;
         }
         $dir = dir($dirname);
+        if ($dir === false) {
+            return false; // Directory could not be opened (e.g. permission denied)
+        }
+        $success = true;
         while (false !== $entry = $dir->read()) {
             if ($entry == '.' || $entry == '..') {
                 continue;
             }
             if (is_link("$dirname/$entry")) {
-                unlink("$dirname/$entry"); // Remove the link itself, never traverse it
+                if (!unlink("$dirname/$entry")) { // Remove the link itself, never traverse it
+                    $success = false;
+                }
             } elseif (is_dir("$dirname/$entry")) {
-                self::rmdirr("$dirname/$entry");
+                if (!self::rmdirr("$dirname/$entry")) {
+                    $success = false;
+                }
             } else {
-                unlink("$dirname/$entry");
+                if (!unlink("$dirname/$entry")) {
+                    $success = false;
+                }
             }
         }
         $dir->close();
-        return rmdir($dirname);
+        // Only call rmdir() if all children were successfully removed
+        return $success && rmdir($dirname);
     }
 
     /**
@@ -156,6 +188,11 @@ class JmLib {
 
     /**
      * Reconstructs the current page's full URL.
+     *
+     * SECURITY NOTE: The host component is read from $_SERVER['HTTP_HOST'], which is supplied
+     * by the client and cannot be trusted. Do NOT use this method to build links for
+     * security-sensitive contexts (e.g. password-reset emails, OAuth redirect URIs). In those
+     * cases, supply a verified base URL from application configuration instead.
      *
      * @param bool|null $for_params If true, the URL will be made ready for a new query parameter to be
      *                         appended by ensuring it ends with either '?' or '&'.
@@ -310,14 +347,12 @@ class JmLib {
                 break;
             case "lastmonth":
             case 'last_month':
-                if (date('m') == date('m', strtotime('-1 month', $now))) {
-                    $now = strtotime('-1 day', $now);
-                }
-                $from = strtotime('-1 month', $now);
-                $till = strtotime('-1 month', $now);
-
-                $output['from'] = mktime(0, 0, 0, date('n', $from), 1, date('Y', $from));
-                $output['till'] = mktime(23, 59, 59, date('n', $till), date('t', $till), date('Y', $till));
+                // Anchor on the 1st of the current month (derived from $now only, not today)
+                // so that strtotime('-1 month') never rolls over (e.g. Mar 31 -> Feb 1, not Mar 3).
+                $firstOfCurrent = mktime(12, 0, 0, (int)date('n', $now), 1, (int)date('Y', $now));
+                $anchor = strtotime('-1 month', $firstOfCurrent);
+                $output['from'] = mktime(0, 0, 0, (int)date('n', $anchor), 1, (int)date('Y', $anchor));
+                $output['till'] = mktime(23, 59, 59, (int)date('n', $anchor), (int)date('t', $anchor), (int)date('Y', $anchor));
                 break;
             case "tomorrow":
                 $zitra = strtotime('+1 day', $now);
@@ -326,10 +361,11 @@ class JmLib {
                 break;
             case "nextmonth":
             case 'next_month':
-                $from = strtotime('+1 month', $now);
-                $till = strtotime('+1 month', $now);
-                $output['from'] = mktime(0, 0, 0, date('n', $from), 1, date('Y', $from));
-                $output['till'] = mktime(23, 59, 59, date('n', $till), date('t', $till), date('Y', $till));
+                // Same anchoring: start from 1st of current month to avoid day-of-month rollover.
+                $firstOfCurrent = mktime(12, 0, 0, (int)date('n', $now), 1, (int)date('Y', $now));
+                $anchor = strtotime('+1 month', $firstOfCurrent);
+                $output['from'] = mktime(0, 0, 0, (int)date('n', $anchor), 1, (int)date('Y', $anchor));
+                $output['till'] = mktime(23, 59, 59, (int)date('n', $anchor), (int)date('t', $anchor), (int)date('Y', $anchor));
                 break;
             case "next7":
             case "next7days":

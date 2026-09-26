@@ -146,6 +146,22 @@ test('createPassword returns hex substring of requested length', function () {
     expect((bool)preg_match('/^[0-9a-fA-F]{6}$/', $pw))->toBe(true);
 });
 
+# createToken()
+test('createToken returns a lowercase hex string of the correct length', function () {
+    $token = JmLib::createToken(32);
+    expect(is_string($token))->toBe(true);
+    expect(strlen($token))->toBe(64);  // 32 bytes = 64 hex chars
+    expect((bool)preg_match('/^[0-9a-f]{64}$/', $token))->toBe(true);
+
+    $short = JmLib::createToken(8);
+    expect(strlen($short))->toBe(16);
+});
+
+test('createToken clamps invalid byte counts to 32', function () {
+    expect(strlen(JmLib::createToken(0)))->toBe(64);
+    expect(strlen(JmLib::createToken(-5)))->toBe(64);
+});
+
 # getUrl()
 test('getUrl handles various parameter options', function () {
     $_SERVER['HTTPS'] = 'on';
@@ -241,6 +257,34 @@ test('getInterval returns null for unknown names and handles $return_only safely
     $out = JmLib::getInterval('today', $now, 'nonexistent');
     expect($out)->toBeArray();
     expect($out['from'])->toBe(strtotime('2023-10-26 00:00:00'));
+});
+
+test('getInterval nextmonth does not roll over on month-end dates', function () {
+    // Jan 31: strtotime('+1 month') gives Mar 3 (bug); anchored on Jan 1 -> Feb 1 (fix)
+    $nowJan31 = strtotime('2024-01-31 15:00:00');
+    $next = JmLib::getInterval('nextmonth', $nowJan31);
+    expect($next['from'])->toBe(strtotime('2024-02-01 00:00:00'));
+    expect($next['till'])->toBe(strtotime('2024-02-29 23:59:59')); // 2024 is a leap year
+
+    // Mar 31: anchored on Mar 1 -> Apr 1
+    $nowMar31 = strtotime('2024-03-31 15:00:00');
+    $next2 = JmLib::getInterval('nextmonth', $nowMar31);
+    expect($next2['from'])->toBe(strtotime('2024-04-01 00:00:00'));
+    expect($next2['till'])->toBe(strtotime('2024-04-30 23:59:59'));
+});
+
+test('getInterval lastmonth does not roll over and uses $now not today', function () {
+    // Mar 31: strtotime('-1 month') gives Mar 3 (bug); anchored on Mar 1 -> Feb 1 (fix)
+    $nowMar31 = strtotime('2024-03-31 15:00:00');
+    $last = JmLib::getInterval('lastmonth', $nowMar31);
+    expect($last['from'])->toBe(strtotime('2024-02-01 00:00:00'));
+    expect($last['till'])->toBe(strtotime('2024-02-29 23:59:59')); // 2024 is a leap year
+
+    // Explicit past $now must not consult today's date
+    $nowOct = strtotime('2023-10-26 15:00:00');
+    $lastOct = JmLib::getInterval('lastmonth', $nowOct);
+    expect($lastOct['from'])->toBe(strtotime('2023-09-01 00:00:00'));
+    expect($lastOct['till'])->toBe(strtotime('2023-09-30 23:59:59'));
 });
 
 # countdays()
