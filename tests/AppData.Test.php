@@ -59,3 +59,29 @@ test('loadMessages populates MESSAGES and returns true on success', function () 
     expect($result)->toBeTrue();
     expect($appData->MESSAGES)->toBe($messages);
 });
+
+test('clearFilters returns true when page is null', function () {
+    $appData = AppData::getInstance();
+
+    $appData->FILTERS = ['mypage' => ['filter1' => 'value1']];
+
+    $result = $appData->clearFilters(null);
+
+    expect($result)->toBeTrue();
+    expect($appData->FILTERS)->toBe(['mypage' => ['filter1' => 'value1']]);
+});
+
+test('clearFilters removes filters for the specified page and returns true', function () {
+    $appData = AppData::getInstance();
+
+    $appData->FILTERS = [
+        'page1' => ['filterA' => 'valueA'],
+        'page2' => ['filterB' => 'valueB']
+    ];
+
+    $result = $appData->clearFilters('page1');
+
+    expect($result)->toBeTrue();
+    expect($appData->FILTERS)->toBe(['page2' => ['filterB' => 'valueB']]);
+    expect($appData->FILTERS)->not->toHaveKey('page1');
+});
